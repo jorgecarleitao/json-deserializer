@@ -1,6 +1,9 @@
 use super::error::*;
 use super::lexer::{next_mode, State};
 
+use alloc::string::ToString;
+use alloc::vec::Vec;
+
 /// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Value<'a> {

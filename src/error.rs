@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 /// Errors of this crate
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Error {

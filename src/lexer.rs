@@ -1,5 +1,7 @@
 use super::Error;
 
+use alloc::string::ToString;
+
 /// The state of the lexer
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum State {
@@ -73,7 +75,7 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (token, state) => {
             return Err(Error::OutOfSpec(format!(
                 "Unexpected token {} for state {:?}",
-                std::str::from_utf8(&[token]).unwrap(),
+                alloc::str::from_utf8(&[token]).unwrap(),
                 state
             )))
         }

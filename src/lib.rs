@@ -1,6 +1,10 @@
 //! Library to parse JSON
 #![deny(missing_docs)]
-#[forbid(unsafe_code)]
+#![no_std]
+#![forbid(unsafe_code)]
+#[macro_use]
+extern crate alloc;
+
 mod error;
 mod lexer;
 mod parser;

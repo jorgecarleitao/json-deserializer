@@ -54,3 +54,12 @@ fn comma_and_string() -> Result<(), Error> {
     );
     Ok(())
 }
+
+#[test]
+fn escaped() -> Result<(), Error> {
+    let data: &[u8] = br#"["\\n"]"#;
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::String(br"\\n")]));
+    Ok(())
+}

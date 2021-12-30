@@ -31,7 +31,7 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
             parse_object(values, mode).map(Value::Object)
         }
         State::ArrayStart => parse_array(values, mode).map(Value::Array),
-        State::String => parse_string(values, mode).map(Value::String),
+        State::String | State::Escape => parse_string(values, mode).map(Value::String),
         State::Number(false) => parse_number(values, mode).map(Value::Number),
         State::Null(0) => {
             parse_null(values, mode)?;
@@ -133,9 +133,7 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 }
 
 pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
-    if !mode.is_string() {
-        panic!("Expected String, found {:?}", mode);
-    }
+    debug_assert!(mode.is_string());
     let string = *values;
     let mut size = 0;
     loop {

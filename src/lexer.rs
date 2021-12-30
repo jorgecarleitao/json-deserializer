@@ -46,7 +46,7 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (_, State::Escape) => State::String,
         (_, State::String) => *mode,
         // object and array
-        (b'{', State::None) => State::ObjectStart,
+        (b'{', _) => State::ObjectStart,
         (b':', State::None) => State::ColonSeparator,
         (b'}', _) => State::ObjectEnd,
         (b'[', _) => State::ArrayStart,
@@ -69,10 +69,16 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (b's', State::Boolean(false, 2)) => State::Boolean(false, 3),
         (b'e', State::Boolean(false, 3)) => State::Boolean(false, 4),
         // number
-        (b'0'..=b'9', State::Number(is_float)) => State::Number(*is_float),
-        (b'0'..=b'9', _) => State::Number(false),
+        (b'0'..=b'9' | b'-' | b'E' | b'e', State::Number(is_float)) => State::Number(*is_float),
+        (b'0'..=b'9' | b'-', _) => State::Number(false),
         (b'.', State::Number(false)) => State::Number(true),
         (b'.', _) => return Err(Error::OutOfSpec("Number with two periods".to_string())),
-        (_, _) => return Err(Error::OutOfSpec("Unexpected token".to_string())),
+        (token, state) => {
+            return Err(Error::OutOfSpec(format!(
+                "Unexpected token {} for state {:?}",
+                std::str::from_utf8(&[token]).unwrap(),
+                state
+            )))
+        }
     })
 }

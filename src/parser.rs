@@ -109,6 +109,7 @@ fn parse_item<'b, 'a>(
     Ok((key, value))
 }
 
+#[inline]
 pub fn advance(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     *values = &values[1..];
     if values.is_empty() {
@@ -119,6 +120,7 @@ pub fn advance(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
+#[inline]
 pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     loop {
         if values.is_empty() {
@@ -172,6 +174,7 @@ pub fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
+#[inline]
 pub fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     debug_assert_eq!(*mode, State::Boolean(true, 0));
 
@@ -183,6 +186,7 @@ pub fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
+#[inline]
 pub fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     debug_assert_eq!(*mode, State::Boolean(false, 0));
 

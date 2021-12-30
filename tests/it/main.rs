@@ -1,3 +1,5 @@
+mod json_integration;
+
 use json_parser::{parse, Error, Value};
 
 #[test]
@@ -109,5 +111,14 @@ fn number_exponent1() -> Result<(), Error> {
 
     let item = parse(data)?;
     assert_eq!(item, Value::Array(vec![Value::Number(b"1e10")]));
+    Ok(())
+}
+
+#[test]
+fn pretty_1() -> Result<(), Error> {
+    let data: &[u8] = b"[\n  null\n]";
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::Null]));
     Ok(())
 }

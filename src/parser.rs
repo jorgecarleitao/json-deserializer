@@ -33,10 +33,7 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
         State::ArrayStart => parse_array(values, mode).map(Value::Array),
         State::String | State::Escape => parse_string(values, mode).map(Value::String),
         State::Number(false) => parse_number(values, mode).map(Value::Number),
-        State::Null(0) => {
-            parse_null(values, mode)?;
-            Ok(Value::Null)
-        }
+        State::Null(0) => parse_null(values, mode).map(|_| Value::Null),
         State::Boolean(true, 0) => {
             parse_true(values, mode)?;
             Ok(Value::Boolean(true))
@@ -77,12 +74,14 @@ fn parse_array<'b, 'a>(
     advance(values, mode)?;
     let mut items = vec![];
     loop {
+        next_token(values, mode)?;
         if *mode == State::ArrayEnd {
             *mode = State::None;
             advance(values, mode)?;
             break;
         }
         items.push(inner_parse(values, mode)?);
+        next_token(values, mode)?;
         if *mode == State::ItemEnd {
             *mode = State::None;
             advance(values, mode)?;
@@ -101,7 +100,6 @@ fn parse_item<'b, 'a>(
     next_token(values, mode)?;
     assert_eq!(*mode, State::ColonSeparator);
     *mode = State::None;
-    *values = &values[1..];
     next_token(values, mode)?;
     let value = inner_parse(values, mode)?;
     next_token(values, mode)?;
@@ -146,6 +144,7 @@ pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Resul
         }
     }
     advance(values, mode)?;
+    next_token(values, mode)?;
     Ok(&string[1..size])
 }
 
@@ -170,6 +169,7 @@ pub fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
         advance(values, mode)?;
     }
     assert_eq!(*mode, State::Null(3));
+    next_token(values, mode)?;
     advance(values, mode)?;
     Ok(())
 }
@@ -182,6 +182,7 @@ pub fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
         advance(values, mode)?;
     }
     assert_eq!(*mode, State::Boolean(true, 3));
+    next_token(values, mode)?;
     advance(values, mode)?;
     Ok(())
 }
@@ -194,6 +195,7 @@ pub fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
         advance(values, mode)?;
     }
     assert_eq!(*mode, State::Boolean(false, 4));
+    next_token(values, mode)?;
     advance(values, mode)?;
     Ok(())
 }

@@ -34,17 +34,14 @@ impl State {
 #[inline]
 pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
     Ok(match (byte, mode) {
-        // ignored
-        (b'\n', _) => *mode,
-        (b' ', _) => *mode,
-        (b'\r', _) => *mode,
-        (b'\t', _) => *mode,
         // string
         (b'"', State::String) => State::None,
         (b'"', _) => State::String,
         (92, State::String) => State::Escape,
         (_, State::Escape) => State::String,
         (_, State::String) => *mode,
+        // ignored
+        (b'\n' | b' ' | b'\r' | b'\t', _) => State::None,
         // object and array
         (b'{', _) => State::ObjectStart,
         (b':', State::None) => State::ColonSeparator,

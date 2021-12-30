@@ -1,42 +1,51 @@
 mod error;
 mod parser;
 pub use error::*;
-pub use parser::*;
+use parser::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum State<'a> {
+    /// A `null`
     Null,
+    /// A string (i.e. something quoted)
     String(&'a [u8]),
-    Object(Vec<(&'a [u8], State<'a>)>),
+    /// A Number (i.e. something starting with a number with an optional period)
     Number(&'a [u8]),
+    /// A boolean (i.e. `false` or `true`)
     Boolean(bool),
+    /// An object (i.e. items inside curly brackets `{}` separated by colon `:` and comma `,`)
+    Object(Vec<(&'a [u8], State<'a>)>),
+    /// An object (i.e. items inside squared brackets `[]` separated by comma `,`)
+    Array(Vec<State<'a>>),
 }
 
-pub fn parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result<State<'a>, Error> {
-    println!("parse: {:?}", std::str::from_utf8(values).unwrap());
+/// Parses
+pub fn parse(mut json: &[u8]) -> Result<State, Error> {
+    let mut mode = next_mode(json[0], &Mode::None)?;
+    inner_parse(&mut json, &mut mode)
+}
+
+fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result<State<'a>, Error> {
     next_token(values, mode)?;
     match mode {
         Mode::ObjectStart => {
             *mode = Mode::None;
             parse_object(values, mode).map(State::Object)
         }
+        Mode::ArrayStart => parse_array(values, mode).map(State::Array),
         Mode::String => parse_string(values, mode).map(State::String),
-        Mode::Number => parse_number(values, mode).map(State::Number),
+        Mode::Number(false) => parse_number(values, mode).map(State::Number),
         Mode::Null(0) => {
             parse_null(values, mode)?;
             Ok(State::Null)
         }
         Mode::Boolean(true, 0) => {
             parse_true(values, mode)?;
-            return Ok(State::Boolean(true));
+            Ok(State::Boolean(true))
         }
         Mode::Boolean(false, 0) => {
             parse_false(values, mode)?;
-            return Ok(State::Boolean(false));
-        }
-        Mode::ArrayStart => {
-            parse_array(values, mode)?;
-            return Ok(State::Boolean(false));
+            Ok(State::Boolean(false))
         }
         _ => panic!(),
     }
@@ -48,14 +57,17 @@ fn parse_object<'b, 'a>(
 ) -> Result<Vec<(&'a [u8], State<'a>)>, Error> {
     let mut items = vec![];
     loop {
-        items.push(parse_item(values, mode)?);
+        next_token(values, mode)?;
         if *mode == Mode::ItemEnd {
             *mode = Mode::None;
             advance(values, mode)?;
         }
         if *mode == Mode::ObjectEnd {
+            *mode = Mode::None;
+            advance(values, mode)?;
             break;
         }
+        items.push(parse_item(values, mode)?);
     }
     Ok(items)
 }
@@ -63,17 +75,16 @@ fn parse_object<'b, 'a>(
 fn parse_array<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result<Vec<State<'a>>, Error> {
     advance(values, mode)?;
     let mut items = vec![];
-    println!("parse_array: {:?}", std::str::from_utf8(values).unwrap());
-    //todo!();
     loop {
-        items.push(parse(values, mode)?);
-        println!("{:?}", mode);
-        if *mode == Mode::ColonSeparator {
+        if *mode == Mode::ArrayEnd {
             *mode = Mode::None;
             advance(values, mode)?;
-        }
-        if *mode == Mode::ArrayEnd {
             break;
+        }
+        items.push(inner_parse(values, mode)?);
+        if *mode == Mode::ItemEnd {
+            *mode = Mode::None;
+            advance(values, mode)?;
         }
     }
     Ok(items)
@@ -91,7 +102,7 @@ fn parse_item<'b, 'a>(
     *mode = Mode::None;
     *values = &values[1..];
     next_token(values, mode)?;
-    let value = parse(values, mode)?;
+    let value = inner_parse(values, mode)?;
     next_token(values, mode)?;
     assert!(*mode == Mode::ObjectEnd || *mode == Mode::ItemEnd);
     Ok((key, value))
@@ -138,7 +149,7 @@ pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result
 }
 
 pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result<&'a [u8], Error> {
-    if *mode != Mode::Number {
+    if *mode != Mode::Number(false) {
         panic!("Expected Number, found {:?}", mode);
     }
     let string = *values;
@@ -146,7 +157,7 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut Mode) -> Result
     loop {
         size += 1;
         advance(values, mode)?;
-        if *mode != Mode::Number {
+        if !mode.is_number() {
             break;
         }
     }

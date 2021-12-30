@@ -21,13 +21,18 @@ pub enum Mode {
     Escape,
     Boolean(bool, u8),
     String,
-    Number,
+    Number(bool), // whether it has a period or not
 }
 
 impl Mode {
     #[inline]
     pub fn is_string(&self) -> bool {
         self == &Self::Escape || self == &Self::String
+    }
+
+    #[inline]
+    pub fn is_number(&self) -> bool {
+        self == &Self::Number(true) || self == &Self::Number(false)
     }
 }
 
@@ -57,8 +62,10 @@ pub fn next_mode(byte: u8, mode: &Mode) -> Result<Mode, Error> {
         (b'l', Mode::Boolean(false, 1)) => Mode::Boolean(false, 2),
         (b's', Mode::Boolean(false, 2)) => Mode::Boolean(false, 3),
         (b'e', Mode::Boolean(false, 3)) => Mode::Boolean(false, 4),
-        (b'0'..=b'9', _) => Mode::Number,
-        (b'.', Mode::Number) => Mode::Number,
+        (b'.', Mode::Number(false)) => Mode::Number(true),
+        (b'.', _) => return Err(Error::OutOfSpec("The ".to_string())),
+        (b'0'..=b'9', Mode::Number(is_float)) => Mode::Number(*is_float),
+        (b'0'..=b'9', _) => Mode::Number(false),
         (b',', _) => Mode::ItemEnd,
         (_, Mode::Null(_)) => Mode::None,
         (_, Mode::Boolean(_, _)) => Mode::None,

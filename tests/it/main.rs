@@ -56,10 +56,58 @@ fn comma_and_string() -> Result<(), Error> {
 }
 
 #[test]
+fn empty_object() -> Result<(), Error> {
+    let data: &[u8] = b"[{\"\":null}]";
+
+    let item = parse(data)?;
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::Object(vec![(b"", Value::Null)])])
+    );
+    Ok(())
+}
+
+#[test]
 fn escaped() -> Result<(), Error> {
     let data: &[u8] = br#"["\\n"]"#;
 
     let item = parse(data)?;
     assert_eq!(item, Value::Array(vec![Value::String(br"\\n")]));
+    Ok(())
+}
+
+#[test]
+fn null() -> Result<(), Error> {
+    let data: &[u8] = b"[null]";
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::Null]));
+    Ok(())
+}
+
+#[test]
+fn empty_string() -> Result<(), Error> {
+    let data: &[u8] = b"[\"\"]";
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::String(b"")]));
+    Ok(())
+}
+
+#[test]
+fn number_exponent() -> Result<(), Error> {
+    let data: &[u8] = b"[1E10]";
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::Number(b"1E10")]));
+    Ok(())
+}
+
+#[test]
+fn number_exponent1() -> Result<(), Error> {
+    let data: &[u8] = b"[1e10]";
+
+    let item = parse(data)?;
+    assert_eq!(item, Value::Array(vec![Value::Number(b"1e10")]));
     Ok(())
 }

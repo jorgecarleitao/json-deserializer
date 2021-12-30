@@ -1,4 +1,4 @@
-use json_parser::*;
+use json_parser::{parse, Error, Value};
 
 #[test]
 fn basics() -> Result<(), Error> {
@@ -15,25 +15,41 @@ fn basics() -> Result<(), Error> {
     let item = parse(data)?;
     assert_eq!(
         item,
-        State::Object(vec![
-            (&[b'a'], State::String(&[b'b'])),
-            (&[b'b'], State::String(&[b'c'])),
-            (&[b'c'], State::Number(b"1.1")),
-            (&[b'd'], State::Null),
-            (&[b'e'], State::Boolean(false)),
-            (&[b'f'], State::Boolean(true)),
+        Value::Object(vec![
+            (&[b'a'], Value::String(&[b'b'])),
+            (&[b'b'], Value::String(&[b'c'])),
+            (&[b'c'], Value::Number(b"1.1")),
+            (&[b'd'], Value::Null),
+            (&[b'e'], Value::Boolean(false)),
+            (&[b'f'], Value::Boolean(true)),
             (
                 &[b'g'],
-                State::Array(vec![
-                    State::String(&[b'b']),
-                    State::Number(&[b'2']),
-                    State::Null,
-                    State::Boolean(true),
-                    State::Boolean(false),
-                    State::Array(vec![]),
-                    State::Object(vec![]),
+                Value::Array(vec![
+                    Value::String(&[b'b']),
+                    Value::Number(&[b'2']),
+                    Value::Null,
+                    Value::Boolean(true),
+                    Value::Boolean(false),
+                    Value::Array(vec![]),
+                    Value::Object(vec![]),
                 ])
             ),
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn comma_and_string() -> Result<(), Error> {
+    let data: &[u8] = br#"[",", "1.2", 1.2]"#;
+
+    let item = parse(data)?;
+    assert_eq!(
+        item,
+        Value::Array(vec![
+            Value::String(b","),
+            Value::String(b"1.2"),
+            Value::Number(b"1.2")
         ])
     );
     Ok(())

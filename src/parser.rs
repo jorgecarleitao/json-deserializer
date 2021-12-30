@@ -1,11 +1,12 @@
 use super::error::*;
 use super::lexer::{next_mode, State};
 
+/// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Value<'a> {
     /// A `null`
     Null,
-    /// A string (i.e. something quoted)
+    /// A string (i.e. something quoted; quotes are not part of this. Data has not been UTF-8 validated)
     String(&'a [u8]),
     /// A Number (i.e. something starting with a number with an optional period)
     Number(&'a [u8]),
@@ -13,11 +14,15 @@ pub enum Value<'a> {
     Boolean(bool),
     /// An object (i.e. items inside curly brackets `{}` separated by colon `:` and comma `,`)
     Object(Vec<(&'a [u8], Value<'a>)>),
-    /// An object (i.e. items inside squared brackets `[]` separated by comma `,`)
+    /// An array (i.e. items inside squared brackets `[]` separated by comma `,`)
     Array(Vec<Value<'a>>),
 }
 
-/// Parses
+/// Parses JSON-compliant bytes into [`Value`]
+/// # Errors
+/// If and only if `json` is not valid JSON.
+/// # Panics
+/// If and only if there is not enough memory to allocate a vector of [`Value`].
 pub fn parse(mut json: &[u8]) -> Result<Value, Error> {
     let mut mode = next_mode(json[0], &State::None)?;
     inner_parse(&mut json, &mut mode)
@@ -98,12 +103,20 @@ fn parse_item<'b, 'a>(
     let key = parse_string(values, mode)?;
 
     next_token(values, mode)?;
-    assert_eq!(*mode, State::ColonSeparator);
+    if *mode != State::ColonSeparator {
+        return Err(Error::OutOfSpec(
+            "The key of an object must terminate with :".to_string(),
+        ));
+    }
     *mode = State::None;
     next_token(values, mode)?;
     let value = inner_parse(values, mode)?;
     next_token(values, mode)?;
-    assert!(*mode == State::ObjectEnd || *mode == State::ItemEnd);
+    if !(*mode == State::ObjectEnd || *mode == State::ItemEnd) {
+        return Err(Error::OutOfSpec(
+            "An item in an object must terminate with } or ,".to_string(),
+        ));
+    }
     Ok((key, value))
 }
 
@@ -132,7 +145,8 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
+#[inline]
+fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
     debug_assert!(mode.is_string());
     let string = *values;
     let mut size = 0;
@@ -148,7 +162,8 @@ pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Resul
     Ok(&string[1..size])
 }
 
-pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
+#[inline]
+fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
     debug_assert_eq!(*mode, State::Number(false));
     let string = *values;
     let mut size = 0;
@@ -162,7 +177,8 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Resul
     Ok(&string[..size])
 }
 
-pub fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
+#[inline]
+fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     debug_assert_eq!(*mode, State::Null(0));
 
     for _ in 0..3 {
@@ -175,7 +191,7 @@ pub fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 }
 
 #[inline]
-pub fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
+fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     debug_assert_eq!(*mode, State::Boolean(true, 0));
 
     for _ in 0..3 {
@@ -188,7 +204,7 @@ pub fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 }
 
 #[inline]
-pub fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
+fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     debug_assert_eq!(*mode, State::Boolean(false, 0));
 
     for _ in 0..4 {

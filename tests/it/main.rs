@@ -1,6 +1,10 @@
 mod json_integration;
 
-use json_parser::{parse, Error, Value};
+use json_parser::{parse, Error, Object, StringValue, Value};
+
+fn string(v: &str) -> StringValue {
+    StringValue::Plain(v)
+}
 
 #[test]
 fn basics() -> Result<(), Error> {
@@ -15,29 +19,31 @@ fn basics() -> Result<(), Error> {
     }"#;
 
     let item = parse(data)?;
-    assert_eq!(
-        item,
-        Value::Object(vec![
-            (&[b'a'], Value::String(&[b'b'])),
-            (&[b'b'], Value::String(&[b'c'])),
-            (&[b'c'], Value::Number(b"1.1")),
-            (&[b'd'], Value::Null),
-            (&[b'e'], Value::Boolean(false)),
-            (&[b'f'], Value::Boolean(true)),
-            (
-                &[b'g'],
-                Value::Array(vec![
-                    Value::String(&[b'b']),
-                    Value::Number(&[b'2']),
-                    Value::Null,
-                    Value::Boolean(true),
-                    Value::Boolean(false),
-                    Value::Array(vec![]),
-                    Value::Object(vec![]),
-                ])
-            ),
-        ])
-    );
+
+    let d = [
+        (string("a"), Value::String(string("b"))),
+        (string("b"), Value::String(string("c"))),
+        (string("c"), Value::Number("1.1")),
+        (string("d"), Value::Null),
+        (string("e"), Value::Bool(false)),
+        (string("f"), Value::Bool(true)),
+        (
+            string("g"),
+            Value::Array(vec![
+                Value::String(StringValue::Plain("b")),
+                Value::Number("2"),
+                Value::Null,
+                Value::Bool(true),
+                Value::Bool(false),
+                Value::Array(vec![]),
+                Value::Object(Default::default()),
+            ]),
+        ),
+    ]
+    .into_iter()
+    .collect::<Object>();
+
+    assert_eq!(item, Value::Object(d));
     Ok(())
 }
 
@@ -49,9 +55,9 @@ fn comma_and_string() -> Result<(), Error> {
     assert_eq!(
         item,
         Value::Array(vec![
-            Value::String(b","),
-            Value::String(b"1.2"),
-            Value::Number(b"1.2")
+            Value::String(string(",")),
+            Value::String(string("1.2")),
+            Value::Number("1.2")
         ])
     );
     Ok(())
@@ -61,20 +67,28 @@ fn comma_and_string() -> Result<(), Error> {
 fn empty_object() -> Result<(), Error> {
     let data: &[u8] = b"[{\"\":null}]";
 
+    let o = [(string(""), Value::Null)].into_iter().collect::<Object>();
+
     let item = parse(data)?;
-    assert_eq!(
-        item,
-        Value::Array(vec![Value::Object(vec![(b"", Value::Null)])])
-    );
+    assert_eq!(item, Value::Array(vec![Value::Object(o)]));
     Ok(())
 }
 
 #[test]
 fn escaped() -> Result<(), Error> {
-    let data: &[u8] = br#"["\\n"]"#;
+    let data: &[u8] = br#"["\n"]"#;
+
+    let a: serde_json::Value = serde_json::from_slice(br#""\n""#).unwrap();
+    if let serde_json::Value::String(a) = a {
+        println!("{:?}", a.as_bytes());
+    }
+    println!("eol: {:?}", "\n".as_bytes());
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::String(br"\\n")]));
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::String(StringValue::String("\n".into()))])
+    );
     Ok(())
 }
 
@@ -92,7 +106,7 @@ fn empty_string() -> Result<(), Error> {
     let data: &[u8] = b"[\"\"]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::String(b"")]));
+    assert_eq!(item, Value::Array(vec![Value::String(string(""))]));
     Ok(())
 }
 
@@ -101,7 +115,7 @@ fn number_exponent() -> Result<(), Error> {
     let data: &[u8] = b"[1E10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number(b"1E10")]));
+    assert_eq!(item, Value::Array(vec![Value::Number("1E10")]));
     Ok(())
 }
 
@@ -110,7 +124,7 @@ fn number_exponent1() -> Result<(), Error> {
     let data: &[u8] = b"[1e10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number(b"1e10")]));
+    assert_eq!(item, Value::Array(vec![Value::Number("1e10")]));
     Ok(())
 }
 

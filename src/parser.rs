@@ -1,8 +1,22 @@
 use super::error::*;
 use super::lexer::{next_mode, State};
 
+use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+
+/// Typedef for the inside of an object.
+pub type Object<'a> = BTreeMap<StringValue<'a>, Value<'a>>;
+
+/// A JSON string, which may either be escaped and allocated
+/// or non-escaped and a reference
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum StringValue<'a> {
+    /// A JSON string with escaped characters replaced
+    String(alloc::string::String),
+    /// A JSON string without escaped characters
+    Plain(&'a str),
+}
 
 /// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -10,13 +24,13 @@ pub enum Value<'a> {
     /// A `null`
     Null,
     /// A string (i.e. something quoted; quotes are not part of this. Data has not been UTF-8 validated)
-    String(&'a [u8]),
-    /// A Number (i.e. something starting with a number with an optional period)
-    Number(&'a [u8]),
-    /// A boolean (i.e. `false` or `true`)
-    Boolean(bool),
+    String(StringValue<'a>),
+    /// A number (i.e. something starting with a number with an optional period)
+    Number(&'a str),
+    /// A bool (i.e. `false` or `true`)
+    Bool(bool),
     /// An object (i.e. items inside curly brackets `{}` separated by colon `:` and comma `,`)
-    Object(Vec<(&'a [u8], Value<'a>)>),
+    Object(Object<'a>),
     /// An array (i.e. items inside squared brackets `[]` separated by comma `,`)
     Array(Vec<Value<'a>>),
 }
@@ -42,23 +56,20 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
         State::String | State::Escape => parse_string(values, mode).map(Value::String),
         State::Number(false) => parse_number(values, mode).map(Value::Number),
         State::Null(0) => parse_null(values, mode).map(|_| Value::Null),
-        State::Boolean(true, 0) => {
+        State::Bool(true, 0) => {
             parse_true(values, mode)?;
-            Ok(Value::Boolean(true))
+            Ok(Value::Bool(true))
         }
-        State::Boolean(false, 0) => {
+        State::Bool(false, 0) => {
             parse_false(values, mode)?;
-            Ok(Value::Boolean(false))
+            Ok(Value::Bool(false))
         }
         _ => Err(Error::OutOfSpec(format!("Unexpected token {}", values[0]))),
     }
 }
 
-fn parse_object<'b, 'a>(
-    values: &'b mut &'a [u8],
-    mode: &mut State,
-) -> Result<Vec<(&'a [u8], Value<'a>)>, Error> {
-    let mut items = vec![];
+fn parse_object<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Object<'a>, Error> {
+    let mut items = BTreeMap::new();
     loop {
         next_token(values, mode)?;
         if *mode == State::ItemEnd {
@@ -70,7 +81,8 @@ fn parse_object<'b, 'a>(
             advance(values, mode)?;
             break;
         }
-        items.push(parse_item(values, mode)?);
+        let (k, v) = parse_item(values, mode)?;
+        items.insert(k, v);
     }
     Ok(items)
 }
@@ -101,7 +113,7 @@ fn parse_array<'b, 'a>(
 fn parse_item<'b, 'a>(
     values: &'b mut &'a [u8],
     mode: &mut State,
-) -> Result<(&'a [u8], Value<'a>), Error> {
+) -> Result<(StringValue<'a>, Value<'a>), Error> {
     next_token(values, mode)?;
     let key = parse_string(values, mode)?;
 
@@ -149,24 +161,55 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 }
 
 #[inline]
-fn parse_string<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
+fn parse_string<'b, 'a>(
+    values: &'b mut &'a [u8],
+    mode: &mut State,
+) -> Result<StringValue<'a>, Error> {
     debug_assert!(mode.is_string());
     let string = *values;
     let mut size = 0;
+    let mut escapes = 0;
     loop {
         size += 1;
         advance(values, mode)?;
+        if *mode == State::Escape {
+            escapes += 1
+        };
         if !mode.is_string() {
             break;
         }
     }
     advance(values, mode)?;
     next_token(values, mode)?;
-    Ok(&string[1..size])
+    let data = &string[1..size];
+    if escapes > 0 {
+        let mut container = alloc::vec::Vec::with_capacity(data.len() - escapes);
+        let mut escape = false;
+        for byte in data {
+            if *byte == 92 && !escape {
+                escape = true;
+                continue;
+            }
+            if escape {
+                match *byte {
+                    b'n' => container.push(b'\n'),
+                    _ => container.push(*byte),
+                }
+            }
+            escape = false;
+        }
+        alloc::string::String::from_utf8(container)
+            .map(StringValue::String)
+            .map_err(|e| Error::OutOfSpec(e.to_string()))
+    } else {
+        alloc::str::from_utf8(data)
+            .map(StringValue::Plain)
+            .map_err(|e| Error::OutOfSpec(e.to_string()))
+    }
 }
 
 #[inline]
-fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
+fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a str, Error> {
     debug_assert_eq!(*mode, State::Number(false));
     let string = *values;
     let mut size = 0;
@@ -177,7 +220,8 @@ fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'
             break;
         }
     }
-    Ok(&string[..size])
+    // unwrap: the lexer only accepts [0-9] and "." as valid in a number, which are valid utf8.
+    Ok(alloc::str::from_utf8(&string[..size]).unwrap())
 }
 
 #[inline]
@@ -195,12 +239,12 @@ fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 
 #[inline]
 fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    debug_assert_eq!(*mode, State::Boolean(true, 0));
+    debug_assert_eq!(*mode, State::Bool(true, 0));
 
     for _ in 0..3 {
         advance(values, mode)?;
     }
-    assert_eq!(*mode, State::Boolean(true, 3));
+    assert_eq!(*mode, State::Bool(true, 3));
     next_token(values, mode)?;
     advance(values, mode)?;
     Ok(())
@@ -208,12 +252,12 @@ fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 
 #[inline]
 fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    debug_assert_eq!(*mode, State::Boolean(false, 0));
+    debug_assert_eq!(*mode, State::Bool(false, 0));
 
     for _ in 0..4 {
         advance(values, mode)?;
     }
-    assert_eq!(*mode, State::Boolean(false, 4));
+    assert_eq!(*mode, State::Bool(false, 4));
     next_token(values, mode)?;
     advance(values, mode)?;
     Ok(())

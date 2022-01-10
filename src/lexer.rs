@@ -6,18 +6,18 @@ use alloc::string::ToString;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum State {
     Finished,
-    None,              // something like a white space, that does not contribute
-    Null(u8),          // the `null` (n,u,l,l)
-    ObjectStart,       // {
-    ObjectEnd,         // }
-    ColonSeparator,    // :
-    ItemEnd,           // ,
-    ArrayStart,        // [
-    ArrayEnd,          // ]
-    Escape,            // \
-    Boolean(bool, u8), // f,a,l,s,e or t,r,u,e
-    String,            // something between double quotes
-    Number(bool),      // whether it has a period or not
+    None,           // something like a white space, that does not contribute
+    Null(u8),       // the `null` (n,u,l,l)
+    ObjectStart,    // {
+    ObjectEnd,      // }
+    ColonSeparator, // :
+    ItemEnd,        // ,
+    ArrayStart,     // [
+    ArrayEnd,       // ]
+    Escape,         // \
+    Bool(bool, u8), // f,a,l,s,e or t,r,u,e
+    String,         // something between double quotes
+    Number(bool),   // whether it has a period or not
 }
 
 impl State {
@@ -36,11 +36,12 @@ impl State {
 #[inline]
 pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
     Ok(match (byte, mode) {
-        // string
+        // finish string
         (b'"', State::String) => State::None,
+        (_, State::Escape) => State::String,
+        // start string
         (b'"', _) => State::String,
         (92, State::String) => State::Escape,
-        (_, State::Escape) => State::String,
         (_, State::String) => *mode,
         // ignored
         (b'\n' | b' ' | b'\r' | b'\t', _) => State::None,
@@ -57,16 +58,16 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (b'l', State::Null(1)) => State::Null(2),
         (b'l', State::Null(2)) => State::Null(3),
         // boolean(true)
-        (b't', _) => State::Boolean(true, 0),
-        (b'r', State::Boolean(true, 0)) => State::Boolean(true, 1),
-        (b'u', State::Boolean(true, 1)) => State::Boolean(true, 2),
-        (b'e', State::Boolean(true, 2)) => State::Boolean(true, 3),
+        (b't', _) => State::Bool(true, 0),
+        (b'r', State::Bool(true, 0)) => State::Bool(true, 1),
+        (b'u', State::Bool(true, 1)) => State::Bool(true, 2),
+        (b'e', State::Bool(true, 2)) => State::Bool(true, 3),
         // boolean(false)
-        (b'f', _) => State::Boolean(false, 0),
-        (b'a', State::Boolean(false, 0)) => State::Boolean(false, 1),
-        (b'l', State::Boolean(false, 1)) => State::Boolean(false, 2),
-        (b's', State::Boolean(false, 2)) => State::Boolean(false, 3),
-        (b'e', State::Boolean(false, 3)) => State::Boolean(false, 4),
+        (b'f', _) => State::Bool(false, 0),
+        (b'a', State::Bool(false, 0)) => State::Bool(false, 1),
+        (b'l', State::Bool(false, 1)) => State::Bool(false, 2),
+        (b's', State::Bool(false, 2)) => State::Bool(false, 3),
+        (b'e', State::Bool(false, 3)) => State::Bool(false, 4),
         // number
         (b'0'..=b'9' | b'-' | b'E' | b'e', State::Number(is_float)) => State::Number(*is_float),
         (b'0'..=b'9' | b'-', _) => State::Number(false),

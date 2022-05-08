@@ -17,12 +17,13 @@ fn arb_json(pretty: bool) -> impl Strategy<Value = String> {
         Just(Value::Null),
         any::<bool>().prop_map(Value::Bool),
         any::<f64>().prop_map(Value::from),
+        any::<i32>().prop_map(Value::from),
         ".*".prop_map(Value::String),
     ];
     leaf.prop_recursive(
-        8,   // 8 levels deep
-        256, // Shoot for maximum size of 256 nodes
-        10,  // We put up to 10 items per collection
+        4,  // 8 levels deep
+        20, // Shoot for maximum size of 256 nodes
+        10, // We put up to 10 items per collection
         |inner| {
             prop_oneof![
                 // Take the inner strategy and make the two recursive cases.

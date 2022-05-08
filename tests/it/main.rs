@@ -23,7 +23,7 @@ fn basics() -> Result<(), Error> {
     let d = [
         (string("a"), Value::String(string("b"))),
         (string("b"), Value::String(string("c"))),
-        (string("c"), Value::Number("1.1")),
+        (string("c"), Value::Number(b"1.1")),
         (string("d"), Value::Null),
         (string("e"), Value::Bool(false)),
         (string("f"), Value::Bool(true)),
@@ -31,7 +31,7 @@ fn basics() -> Result<(), Error> {
             string("g"),
             Value::Array(vec![
                 Value::String(StringValue::Plain("b")),
-                Value::Number("2"),
+                Value::Number(b"2"),
                 Value::Null,
                 Value::Bool(true),
                 Value::Bool(false),
@@ -57,7 +57,7 @@ fn comma_and_string() -> Result<(), Error> {
         Value::Array(vec![
             Value::String(string(",")),
             Value::String(string("1.2")),
-            Value::Number("1.2")
+            Value::Number(b"1.2")
         ])
     );
     Ok(())
@@ -78,11 +78,13 @@ fn empty_object() -> Result<(), Error> {
 fn escaped() -> Result<(), Error> {
     let data: &[u8] = br#"["\n"]"#;
 
+    /*
     let a: serde_json::Value = serde_json::from_slice(br#""\n""#).unwrap();
     if let serde_json::Value::String(a) = a {
         println!("{:?}", a.as_bytes());
     }
     println!("eol: {:?}", "\n".as_bytes());
+    */
 
     let item = parse(data)?;
     assert_eq!(
@@ -111,11 +113,56 @@ fn empty_string() -> Result<(), Error> {
 }
 
 #[test]
+fn utf8() -> Result<(), Error> {
+    let data: &str = "[\"Ç\"]";
+
+    let item = parse(data.as_bytes())?;
+    assert_eq!(item, Value::Array(vec![Value::String(string("Ç"))]));
+    Ok(())
+}
+
+#[test]
+fn escaped_1() -> Result<(), Error> {
+    let data: &str = r#"["\n"]"#;
+
+    let item = parse(data.as_bytes())?;
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::String(StringValue::String("\n".to_string()))])
+    );
+    Ok(())
+}
+
+#[test]
+fn codepoint() -> Result<(), Error> {
+    let data: &str = r#"["\u20AC"]"#;
+
+    let item = parse(data.as_bytes())?;
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::String(StringValue::String("€".to_string()))])
+    );
+    Ok(())
+}
+
+#[test]
+fn multiple_escape() -> Result<(), Error> {
+    let data: &[u8] = b"[\"\\\\A\"]";
+
+    let item = parse(data)?;
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::String(StringValue::String("\\A".to_string()))])
+    );
+    Ok(())
+}
+
+#[test]
 fn number_exponent() -> Result<(), Error> {
     let data: &[u8] = b"[1E10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number("1E10")]));
+    assert_eq!(item, Value::Array(vec![Value::Number(b"1E10")]));
     Ok(())
 }
 
@@ -124,7 +171,7 @@ fn number_exponent1() -> Result<(), Error> {
     let data: &[u8] = b"[1e10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number("1e10")]));
+    assert_eq!(item, Value::Array(vec![Value::Number(b"1e10")]));
     Ok(())
 }
 

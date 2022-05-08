@@ -17,13 +17,14 @@ pub enum State {
     Escape,         // \
     Bool(bool, u8), // f,a,l,s,e or t,r,u,e
     String,         // something between double quotes
+    Codepoint(u8),  // parsing \uXXXX (0 => u, 1-3 => X)
     Number(bool),   // whether it has a period or not
 }
 
 impl State {
     #[inline]
     pub fn is_string(&self) -> bool {
-        self == &Self::Escape || self == &Self::String
+        self == &Self::Escape || self == &Self::String || matches!(self, Self::Codepoint(_))
     }
 
     #[inline]
@@ -36,11 +37,17 @@ impl State {
 #[inline]
 pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
     Ok(match (byte, mode) {
+        (_, State::Codepoint(0)) => State::Codepoint(1),
+        (_, State::Codepoint(1)) => State::Codepoint(2),
+        (_, State::Codepoint(2)) => State::Codepoint(3),
+        (_, State::Codepoint(3)) => State::String,
         // finish string
         (b'"', State::String) => State::None,
+        (b'u', State::Escape) => State::Codepoint(0),
         (_, State::Escape) => State::String,
         // start string
         (b'"', _) => State::String,
+        // start escape
         (92, State::String) => State::Escape,
         (_, State::String) => *mode,
         // ignored

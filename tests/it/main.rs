@@ -113,6 +113,15 @@ fn empty_string() -> Result<(), Error> {
 }
 
 #[test]
+fn number() -> Result<(), Error> {
+    let data: &str = "[10]";
+
+    let item = parse(data.as_bytes())?;
+    assert_eq!(item, Value::Array(vec![Value::Number(b"10")]));
+    Ok(())
+}
+
+#[test]
 fn utf8() -> Result<(), Error> {
     let data: &str = "[\"Ç\"]";
 

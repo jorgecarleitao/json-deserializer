@@ -22,7 +22,6 @@ fn next_mode(byte: u8, mode: State) -> Result<State, Error> {
         (b'"', State::String) => State::Finished,
         (b'u', State::Escape) => State::Codepoint(0),
         (_, State::Escape) => State::String,
-        // start escape
         (b'\\', State::String) => State::Escape,
         (_, State::String) => mode,
         (token, _) => return Err(Error::OutOfSpec(OutOfSpecError::InvalidStringToken(token))),

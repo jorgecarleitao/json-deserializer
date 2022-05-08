@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 
 use super::error::*;
 use super::lexer::{next_mode, State};
+use super::number::parse_number as _parse_number;
 use super::string::{parse_string as _parse_string, StringValue};
 
 /// Typedef for the inside of an object.
@@ -46,6 +47,15 @@ fn parse_string<'b, 'a>(
     r
 }
 
+fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
+    let r = _parse_number(values);
+    let byte = *values
+        .get(0)
+        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    *mode = next_mode(byte, mode)?;
+    r
+}
+
 fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Value<'a>, Error> {
     next_token(values, mode)?;
     match mode {
@@ -55,7 +65,7 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
         }
         State::ArrayStart => parse_array(values, mode).map(Value::Array),
         State::String => parse_string(values, mode).map(Value::String),
-        State::Number(false) => parse_number(values, mode).map(Value::Number),
+        State::Number => parse_number(values, mode).map(Value::Number),
         State::Null(0) => parse_null(values, mode).map(|_| Value::Null),
         State::Bool(true, 0) => {
             parse_true(values, mode)?;
@@ -102,7 +112,9 @@ fn parse_array<'b, 'a>(
             break;
         }
         items.push(inner_parse(values, mode)?);
+        println!("array: {:?} {:?}", values, mode);
         next_token(values, mode)?;
+        println!("{:?}", mode);
         if *mode == State::ItemEnd {
             *mode = State::None;
             advance(values, mode)?;
@@ -135,11 +147,11 @@ fn parse_item<'b, 'a>(
 #[inline]
 pub fn advance(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     *values = &values[1..];
-    if values.is_empty() {
-        *mode = State::Finished
+    *mode = if let Some(byte) = values.get(0) {
+        next_mode(*byte, mode)?
     } else {
-        *mode = next_mode(values[0], mode)?;
-    }
+        State::Finished
+    };
     Ok(())
 }
 
@@ -155,21 +167,6 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
         advance(values, mode)?;
     }
     Ok(())
-}
-
-#[inline]
-fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
-    debug_assert_eq!(*mode, State::Number(false));
-    let string = *values;
-    let mut size = 0;
-    loop {
-        size += 1;
-        advance(values, mode)?;
-        if !mode.is_number() {
-            break;
-        }
-    }
-    Ok(&string[..size])
 }
 
 #[inline]

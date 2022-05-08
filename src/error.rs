@@ -20,9 +20,9 @@ pub enum OutOfSpecError {
     /// todo
     InvalidNullToken(u8),
     /// When an invalid token is found while trying to parse "false"
-    InvalidFalseToken(u8),
+    InvalidFalseToken([u8; 5]),
     /// When an invalid token is found while trying to parse "true"
-    InvalidTrueToken(u8),
+    InvalidTrueToken([u8; 4]),
     /// todo
     InvalidEOF,
 }

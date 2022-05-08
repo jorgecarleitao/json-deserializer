@@ -15,6 +15,10 @@ pub enum OutOfSpecError {
     KeyWithoutDoubleColon,
     /// todo
     InvalidToken(u8),
+    /// todo
+    InvalidStringToken(u8),
+    /// todo
+    InvalidEOF,
 }
 
 /// Errors of this crate

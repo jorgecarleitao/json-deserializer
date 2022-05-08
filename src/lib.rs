@@ -8,5 +8,7 @@ extern crate alloc;
 mod error;
 mod lexer;
 mod parser;
+mod string;
 pub use error::*;
-pub use parser::{parse, Object, StringValue, Value};
+pub use parser::{parse, Object, Value};
+pub use string::StringValue;

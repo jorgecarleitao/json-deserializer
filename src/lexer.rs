@@ -21,11 +21,6 @@ pub enum State {
 
 impl State {
     #[inline]
-    pub fn is_string(&self) -> bool {
-        self == &Self::Escape || self == &Self::String || matches!(self, Self::Codepoint(_))
-    }
-
-    #[inline]
     pub fn is_number(&self) -> bool {
         self == &Self::Number(true) || self == &Self::Number(false)
     }

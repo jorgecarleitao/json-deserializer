@@ -5,7 +5,7 @@ use super::{Error, OutOfSpecError};
 pub enum State {
     Finished,
     None,           // something like a white space, that does not contribute
-    Null(u8),       // the `null` (n,u,l,l)
+    Null,           // the `null` (n,u,l,l)
     ObjectStart,    // {
     ObjectEnd,      // }
     ColonSeparator, // :
@@ -33,10 +33,7 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (b']', _) => State::ArrayEnd,
         (b',', _) => State::ItemEnd,
         // null
-        (b'n', _) => State::Null(0),
-        (b'u', State::Null(0)) => State::Null(1),
-        (b'l', State::Null(1)) => State::Null(2),
-        (b'l', State::Null(2)) => State::Null(3),
+        (b'n', _) => State::Null,
         // boolean(true)
         (b't', _) => State::Bool(true, 0),
         (b'r', State::Bool(true, 0)) => State::Bool(true, 1),

@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 
 use super::error::*;
 use super::lexer::{next_mode, State};
+use super::null::parse_null as _parse_null;
 use super::number::parse_number as _parse_number;
 use super::string::{parse_string as _parse_string, StringValue};
 
@@ -66,7 +67,7 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
         State::ArrayStart => parse_array(values, mode).map(Value::Array),
         State::String => parse_string(values, mode).map(Value::String),
         State::Number => parse_number(values, mode).map(Value::Number),
-        State::Null(0) => parse_null(values, mode).map(|_| Value::Null),
+        State::Null => parse_null(values, mode).map(|_| Value::Null),
         State::Bool(true, 0) => {
             parse_true(values, mode)?;
             Ok(Value::Bool(true))
@@ -112,9 +113,7 @@ fn parse_array<'b, 'a>(
             break;
         }
         items.push(inner_parse(values, mode)?);
-        println!("array: {:?} {:?}", values, mode);
         next_token(values, mode)?;
-        println!("{:?}", mode);
         if *mode == State::ItemEnd {
             *mode = State::None;
             advance(values, mode)?;
@@ -171,14 +170,10 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 
 #[inline]
 fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    debug_assert_eq!(*mode, State::Null(0));
-
-    for _ in 0..3 {
-        advance(values, mode)?;
-    }
-    assert_eq!(*mode, State::Null(3));
-    next_token(values, mode)?;
+    _parse_null(values)?;
+    *mode = State::None;
     advance(values, mode)?;
+    next_token(values, mode)?;
     Ok(())
 }
 

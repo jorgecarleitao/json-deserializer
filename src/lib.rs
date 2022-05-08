@@ -7,6 +7,7 @@ extern crate alloc;
 
 mod error;
 mod lexer;
+mod null;
 mod number;
 mod parser;
 mod string;

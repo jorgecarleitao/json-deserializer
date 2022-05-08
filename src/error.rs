@@ -18,6 +18,8 @@ pub enum OutOfSpecError {
     /// todo
     InvalidStringToken(u8),
     /// todo
+    InvalidNullToken(u8),
+    /// todo
     InvalidEOF,
 }
 

@@ -1,5 +1,7 @@
 from pathlib import Path
 import json
+import random
+import string
 
 
 Path("./data").mkdir(exist_ok=True)
@@ -15,4 +17,14 @@ for log2_size in range(10,22, 2):
 
     data = [False, True] * (size // 2)
     with open(f"data/bool_{log2_size}.json", "w") as f:
+        json.dump(data, f)
+
+    # more complex
+    data = [{"a": ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))}] * size
+    with open(f"data/object_string_{log2_size}.json", "w") as f:
+        json.dump(data, f)
+
+    # more complex
+    data = [{"a": False}] * size
+    with open(f"data/object_bool_{log2_size}.json", "w") as f:
         json.dump(data, f)

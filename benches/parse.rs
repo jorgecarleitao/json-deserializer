@@ -23,7 +23,7 @@ fn read(file: &str, log2_size: usize) -> Vec<u8> {
 }
 
 fn add_benchmark(c: &mut Criterion) {
-    for type_ in ["number", "string", "bool"] {
+    for type_ in ["number", "string", "bool", "object_string", "object_bool"] {
         (10..=20usize).step_by(2).for_each(|log2_size| {
             let bytes = read(type_, log2_size);
 

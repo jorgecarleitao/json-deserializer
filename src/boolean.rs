@@ -7,7 +7,7 @@ pub fn parse_true(values: &mut &[u8]) -> Result<(), Error> {
         .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?
         .try_into()
         .unwrap();
-    *values = &values[4 - 1..];
+    *values = &values[4..];
     if data != [b't', b'r', b'u', b'e'] {
         return Err(Error::OutOfSpec(OutOfSpecError::InvalidTrueToken(data)));
     };
@@ -21,7 +21,7 @@ pub fn parse_false(values: &mut &[u8]) -> Result<(), Error> {
         .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?
         .try_into()
         .unwrap();
-    *values = &values[5 - 1..];
+    *values = &values[5..];
     if data != [b'f', b'a', b'l', b's', b'e'] {
         return Err(Error::OutOfSpec(OutOfSpecError::InvalidFalseToken(data)));
     };

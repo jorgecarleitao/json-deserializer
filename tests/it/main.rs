@@ -143,6 +143,14 @@ fn escaped_1() -> Result<(), Error> {
 }
 
 #[test]
+fn escaped_error() -> Result<(), Error> {
+    let data: &str = r#"["\"]"#;
+
+    assert!(parse(data.as_bytes()).is_err());
+    Ok(())
+}
+
+#[test]
 fn codepoint() -> Result<(), Error> {
     let data: &str = r#"["\u20AC"]"#;
 

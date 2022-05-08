@@ -18,7 +18,7 @@ pub enum OutOfSpecError {
     /// todo
     InvalidStringToken(u8),
     /// todo
-    InvalidNullToken(u8),
+    InvalidNullToken([u8; 4]),
     /// When an invalid token is found while trying to parse "false"
     InvalidFalseToken([u8; 5]),
     /// When an invalid token is found while trying to parse "true"

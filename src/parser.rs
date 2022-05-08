@@ -87,11 +87,14 @@ fn parse_string<'b, 'a>(
     values: &'b mut &'a [u8],
     mode: &mut State,
 ) -> Result<StringValue<'a>, Error> {
-    let r = _parse_string(values);
+    let r = _parse_string(values)?;
     *mode = State::None;
+    if values.is_empty() {
+        return Err(Error::OutOfSpec(OutOfSpecError::InvalidEOF));
+    }
     advance(values, mode)?;
     next_token(values, mode)?;
-    r
+    Ok(r)
 }
 
 fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
@@ -205,7 +208,7 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     loop {
         if values.is_empty() {
             break;
-        };
+        }
         if *mode != State::None {
             break;
         }
@@ -217,26 +220,29 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 #[inline]
 fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     _parse_null(values)?;
-    *mode = State::None;
-    advance(values, mode)?;
-    next_token(values, mode)?;
+    let byte = *values
+        .get(0)
+        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    *mode = next_mode(byte, mode)?;
     Ok(())
 }
 
 #[inline]
 fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     _parse_true(values)?;
-    *mode = State::None;
-    advance(values, mode)?;
-    next_token(values, mode)?;
+    let byte = *values
+        .get(0)
+        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    *mode = next_mode(byte, mode)?;
     Ok(())
 }
 
 #[inline]
 fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     _parse_false(values)?;
-    *mode = State::None;
-    advance(values, mode)?;
-    next_token(values, mode)?;
+    let byte = *values
+        .get(0)
+        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    *mode = next_mode(byte, mode)?;
     Ok(())
 }

@@ -1,12 +1,27 @@
 use core::fmt::Display;
 
-use alloc::string::String;
+/// List of possible errors
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum OutOfSpecError {
+    /// todo
+    NumberWithTwoPeriods,
+    /// todo
+    InvalidUtf8,
+    /// todo
+    InvalidEscaped(u8),
+    /// todo
+    InvalidHex(u8),
+    /// todo
+    KeyWithoutDoubleColon,
+    /// todo
+    InvalidToken(u8),
+}
 
 /// Errors of this crate
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Error {
     /// When the data is not JSON compliant, together with the reason
-    OutOfSpec(String),
+    OutOfSpec(OutOfSpecError),
     /// Two utf-16 is still not implemented
     TwoUTF16SurrogatesNotYetImplemented,
 }

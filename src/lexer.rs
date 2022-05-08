@@ -1,6 +1,4 @@
-use super::Error;
-
-use alloc::string::ToString;
+use super::{Error, OutOfSpecError};
 
 /// The state of the lexer
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -48,7 +46,7 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         // start string
         (b'"', _) => State::String,
         // start escape
-        (92, State::String) => State::Escape,
+        (b'\\', State::String) => State::Escape,
         (_, State::String) => *mode,
         // ignored
         (b'\n' | b' ' | b'\r' | b'\t', _) => State::None,
@@ -79,13 +77,7 @@ pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
         (b'0'..=b'9' | b'-' | b'E' | b'e', State::Number(is_float)) => State::Number(*is_float),
         (b'0'..=b'9' | b'-', _) => State::Number(false),
         (b'.', State::Number(false)) => State::Number(true),
-        (b'.', _) => return Err(Error::OutOfSpec("Number with two periods".to_string())),
-        (token, state) => {
-            return Err(Error::OutOfSpec(format!(
-                "Unexpected token {} for state {:?}",
-                alloc::str::from_utf8(&[token]).unwrap(),
-                state
-            )))
-        }
+        (b'.', _) => return Err(Error::OutOfSpec(OutOfSpecError::NumberWithTwoPeriods)),
+        (token, _) => return Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(token))),
     })
 }

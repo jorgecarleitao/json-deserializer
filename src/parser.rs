@@ -3,7 +3,6 @@ use super::lexer::{next_mode, State};
 
 use alloc::collections::BTreeMap;
 use alloc::string::String;
-use alloc::string::ToString;
 use alloc::vec::Vec;
 
 /// Typedef for the inside of an object.
@@ -65,7 +64,7 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
             parse_false(values, mode)?;
             Ok(Value::Bool(false))
         }
-        _ => Err(Error::OutOfSpec(format!("Unexpected token {}", values[0]))),
+        _ => Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(values[0]))),
     }
 }
 
@@ -120,18 +119,14 @@ fn parse_item<'b, 'a>(
 
     next_token(values, mode)?;
     if *mode != State::ColonSeparator {
-        return Err(Error::OutOfSpec(
-            "The key of an object must terminate with :".to_string(),
-        ));
+        return Err(Error::OutOfSpec(OutOfSpecError::KeyWithoutDoubleColon));
     }
     *mode = State::None;
     next_token(values, mode)?;
     let value = inner_parse(values, mode)?;
     next_token(values, mode)?;
     if !(*mode == State::ObjectEnd || *mode == State::ItemEnd) {
-        return Err(Error::OutOfSpec(
-            "An item in an object must terminate with } or ,".to_string(),
-        ));
+        return Err(Error::OutOfSpec(OutOfSpecError::KeyWithoutDoubleColon));
     }
     Ok((key, value))
 }
@@ -161,14 +156,7 @@ pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
-#[inline]
-fn parse_string<'b, 'a>(
-    values: &'b mut &'a [u8],
-    mode: &mut State,
-) -> Result<StringValue<'a>, Error> {
-    // compute the size of the string value and whether it has escapes
-    debug_assert!(mode.is_string());
-    let string = *values;
+fn compute_length(values: &mut &[u8], mode: &mut State) -> Result<(usize, usize), Error> {
     let mut length = 0;
     let mut escapes = 0;
     loop {
@@ -184,9 +172,23 @@ fn parse_string<'b, 'a>(
     advance(values, mode)?;
     next_token(values, mode)?;
 
+    Ok((length, escapes))
+}
+
+#[inline]
+fn parse_string<'b, 'a>(
+    values: &'b mut &'a [u8],
+    mode: &mut State,
+) -> Result<StringValue<'a>, Error> {
+    // compute the size of the string value and whether it has escapes
+    debug_assert!(mode.is_string());
+    let string = *values;
+    let (length, escapes) = compute_length(values, mode)?;
+
     let mut data = &string[1..length];
     if escapes > 0 {
-        let mut container = String::with_capacity(data.len() - escapes);
+        let capacity = data.len() - escapes;
+        let mut container = String::with_capacity(capacity);
 
         while !data.is_empty() {
             let first = data[0];
@@ -202,7 +204,7 @@ fn parse_string<'b, 'a>(
     } else {
         alloc::str::from_utf8(data)
             .map(StringValue::Plain)
-            .map_err(|e| Error::OutOfSpec(e.to_string()))
+            .map_err(|_| Error::OutOfSpec(OutOfSpecError::InvalidUtf8))
     }
 }
 
@@ -386,12 +388,7 @@ fn parse_escape<'a>(mut input: &'a [u8], scratch: &mut String) -> Result<&'a [u8
 
             scratch.push(c);
         }
-        other => {
-            return Err(Error::OutOfSpec(format!(
-                "Escaped invalid character {}",
-                other
-            )))
-        }
+        other => return Err(Error::OutOfSpec(OutOfSpecError::InvalidEscaped(other))),
     }
 
     Ok(input)
@@ -402,7 +399,7 @@ fn decode_hex_escape(input: &[u8]) -> Result<u16, Error> {
     let mut n = 0;
     for number in numbers_u8 {
         let hex =
-            decode_hex_val(number).ok_or_else(|| Error::OutOfSpec("Not an hex".to_string()))?;
+            decode_hex_val(number).ok_or(Error::OutOfSpec(OutOfSpecError::InvalidHex(number)))?;
         n = (n << 4) + hex;
     }
     Ok(n)

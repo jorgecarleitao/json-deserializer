@@ -15,27 +15,27 @@ fn parse_json(data: &[u8]) {
     }
 }
 
-fn read(log2_size: usize) -> Vec<u8> {
-    let mut f = std::fs::File::open(format!("bla_{}.json", log2_size)).unwrap();
+fn read(file: &str, log2_size: usize) -> Vec<u8> {
+    let mut f = std::fs::File::open(format!("data/{}_{}.json", file, log2_size)).unwrap();
     let mut data = vec![];
     f.read_to_end(&mut data).unwrap();
     data
 }
 
 fn add_benchmark(c: &mut Criterion) {
-    (10..=20usize).step_by(2).for_each(|log2_size| {
-        //let size = 2usize.pow(log2_size as u32);
+    for type_ in ["number", "string", "bool"] {
+        (10..=20usize).step_by(2).for_each(|log2_size| {
+            let bytes = read(type_, log2_size);
 
-        let bytes = read(log2_size);
+            c.bench_function(&format!("{} json_parser 2^{}", type_, log2_size), |b| {
+                b.iter(|| parse_json(&bytes))
+            });
 
-        c.bench_function(&format!("json_parser 2^{}", log2_size), |b| {
-            b.iter(|| parse_json(&bytes))
-        });
-
-        c.bench_function(&format!("serde_json 2^{}", log2_size), |b| {
-            b.iter(|| parse_serde_json(&bytes))
-        });
-    })
+            c.bench_function(&format!("{} serde_json 2^{}", type_, log2_size), |b| {
+                b.iter(|| parse_serde_json(&bytes))
+            });
+        })
+    }
 }
 
 criterion_group!(benches, add_benchmark);

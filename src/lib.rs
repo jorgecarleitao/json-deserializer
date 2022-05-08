@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate alloc;
 
+mod boolean;
 mod error;
 mod lexer;
 mod null;

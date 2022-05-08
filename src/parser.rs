@@ -1,6 +1,8 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
+use super::boolean::parse_false as _parse_false;
+use super::boolean::parse_true as _parse_true;
 use super::error::*;
 use super::lexer::{next_mode, State};
 use super::null::parse_null as _parse_null;
@@ -68,11 +70,11 @@ fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Val
         State::String => parse_string(values, mode).map(Value::String),
         State::Number => parse_number(values, mode).map(Value::Number),
         State::Null => parse_null(values, mode).map(|_| Value::Null),
-        State::Bool(true, 0) => {
+        State::Bool(true) => {
             parse_true(values, mode)?;
             Ok(Value::Bool(true))
         }
-        State::Bool(false, 0) => {
+        State::Bool(false) => {
             parse_false(values, mode)?;
             Ok(Value::Bool(false))
         }
@@ -179,26 +181,18 @@ fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
 
 #[inline]
 fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    debug_assert_eq!(*mode, State::Bool(true, 0));
-
-    for _ in 0..3 {
-        advance(values, mode)?;
-    }
-    assert_eq!(*mode, State::Bool(true, 3));
-    next_token(values, mode)?;
+    _parse_true(values)?;
+    *mode = State::None;
     advance(values, mode)?;
+    next_token(values, mode)?;
     Ok(())
 }
 
 #[inline]
 fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    debug_assert_eq!(*mode, State::Bool(false, 0));
-
-    for _ in 0..4 {
-        advance(values, mode)?;
-    }
-    assert_eq!(*mode, State::Bool(false, 4));
-    next_token(values, mode)?;
+    _parse_false(values)?;
+    *mode = State::None;
     advance(values, mode)?;
+    next_token(values, mode)?;
     Ok(())
 }

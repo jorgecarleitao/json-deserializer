@@ -15,3 +15,13 @@ Two important examples of this requirement are:
 ## Safety
 
 This crate is `#![forbid(unsafe_code)]` only panics on failed allocations.
+
+### Benches
+
+Run
+
+```bash
+python3 write_bench_files.py && cargo bench
+```
+
+for a comparison with `serde_json`.

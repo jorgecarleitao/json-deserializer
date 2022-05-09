@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use alloc::string::String;
 
 use super::{Error, OutOfSpecError};
@@ -48,6 +50,7 @@ fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
             escapes += 1
         };
         if mode == State::Finished {
+            *values = &values[1..];
             break;
         }
     }
@@ -62,6 +65,18 @@ pub enum StringValue<'a> {
     String(alloc::string::String),
     /// A JSON string without escaped characters
     Plain(&'a str),
+}
+
+impl<'a> Deref for StringValue<'a> {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            StringValue::String(string) => string.deref(),
+            StringValue::Plain(str) => str,
+        }
+    }
 }
 
 #[inline]

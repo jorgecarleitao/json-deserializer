@@ -1,57 +1,14 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use super::boolean::parse_false as _parse_false;
-use super::boolean::parse_true as _parse_true;
+use super::array::parse_array;
+use super::boolean::parse_false;
+use super::boolean::parse_true;
 use super::error::*;
-use super::null::parse_null as _parse_null;
-use super::number::parse_number as _parse_number;
-use super::string::{parse_string as _parse_string, StringValue};
-
-/// The state of the lexer
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum State {
-    Finished,
-    None,           // something like a white space, that does not contribute
-    Null,           // the `null` (n,u,l,l)
-    ObjectStart,    // {
-    ObjectEnd,      // }
-    ColonSeparator, // :
-    ItemEnd,        // ,
-    ArrayStart,     // [
-    ArrayEnd,       // ]
-    Bool(bool),     // f,a,l,s,e or t,r,u,e
-    String,         // something between double quotes
-    Number,         // a number
-}
-
-/// The transition state of the lexer
-#[inline]
-pub fn next_mode(byte: u8, mode: &State) -> Result<State, Error> {
-    Ok(match (byte, mode) {
-        // start string
-        (b'"', _) => State::String,
-        // ignored
-        (b'\n' | b' ' | b'\r' | b'\t', _) => State::None,
-        // object and array
-        (b'{', _) => State::ObjectStart,
-        (b':', State::None) => State::ColonSeparator,
-        (b'}', _) => State::ObjectEnd,
-        (b'[', _) => State::ArrayStart,
-        (b']', _) => State::ArrayEnd,
-        (b',', _) => State::ItemEnd,
-        // null
-        (b'n', _) => State::Null,
-        // boolean(true)
-        (b't', _) => State::Bool(true),
-        // boolean(false)
-        (b'f', _) => State::Bool(false),
-        // number
-        (b'0'..=b'9' | b'-', _) => State::Number,
-        (b'.', _) => return Err(Error::OutOfSpec(OutOfSpecError::NumberWithTwoPeriods)),
-        (token, _) => return Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(token))),
-    })
-}
+use super::null::parse_null;
+use super::number::parse_number;
+use super::object::parse_object;
+use super::string::{parse_string, StringValue};
 
 /// Typedef for the inside of an object.
 pub type Object<'a> = BTreeMap<StringValue<'a>, Value<'a>>;
@@ -77,172 +34,41 @@ pub enum Value<'a> {
 /// # Errors
 /// If and only if `json` is not valid JSON.
 /// # Panics
-/// If and only if there is not enough memory to allocate a vector of [`Value`].
+/// If and only if there is not enough memory to allocate.
 pub fn parse(mut json: &[u8]) -> Result<Value, Error> {
-    let mut mode = next_mode(json[0], &State::None)?;
-    inner_parse(&mut json, &mut mode)
+    parse_value(&mut json)
 }
 
-fn parse_string<'b, 'a>(
-    values: &'b mut &'a [u8],
-    mode: &mut State,
-) -> Result<StringValue<'a>, Error> {
-    let r = _parse_string(values)?;
-    *mode = State::None;
-    if values.is_empty() {
-        return Err(Error::OutOfSpec(OutOfSpecError::InvalidEOF));
+pub fn parse_value<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Value<'a>, Error> {
+    skip_unused(values);
+    let token = current_token(values)?;
+    match token {
+        b'{' => parse_object(values).map(Value::Object),
+        b'[' => parse_array(values).map(Value::Array),
+        b'"' => parse_string(values).map(Value::String),
+        b'n' => parse_null(values).map(|_| Value::Null),
+        b't' => parse_true(values).map(|_| Value::Bool(true)),
+        b'f' => parse_false(values).map(|_| Value::Bool(false)),
+        b'0'..=b'9' | b'-' => parse_number(values).map(Value::Number),
+        other => Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(other))),
     }
-    advance(values, mode)?;
-    next_token(values, mode)?;
-    Ok(r)
-}
-
-fn parse_number<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<&'a [u8], Error> {
-    let r = _parse_number(values);
-    let byte = *values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    *mode = next_mode(byte, mode)?;
-    r
-}
-
-fn inner_parse<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Value<'a>, Error> {
-    next_token(values, mode)?;
-    match mode {
-        State::ObjectStart => {
-            *mode = State::None;
-            parse_object(values, mode).map(Value::Object)
-        }
-        State::ArrayStart => parse_array(values, mode).map(Value::Array),
-        State::String => parse_string(values, mode).map(Value::String),
-        State::Number => parse_number(values, mode).map(Value::Number),
-        State::Null => parse_null(values, mode).map(|_| Value::Null),
-        State::Bool(true) => {
-            parse_true(values, mode)?;
-            Ok(Value::Bool(true))
-        }
-        State::Bool(false) => {
-            parse_false(values, mode)?;
-            Ok(Value::Bool(false))
-        }
-        _ => Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(values[0]))),
-    }
-}
-
-fn parse_object<'b, 'a>(values: &'b mut &'a [u8], mode: &mut State) -> Result<Object<'a>, Error> {
-    let mut items = BTreeMap::new();
-    loop {
-        next_token(values, mode)?;
-        if *mode == State::ItemEnd {
-            *mode = State::None;
-            advance(values, mode)?;
-        }
-        if *mode == State::ObjectEnd {
-            *mode = State::None;
-            advance(values, mode)?;
-            break;
-        }
-        let (k, v) = parse_item(values, mode)?;
-        items.insert(k, v);
-    }
-    Ok(items)
-}
-
-fn parse_array<'b, 'a>(
-    values: &'b mut &'a [u8],
-    mode: &mut State,
-) -> Result<Vec<Value<'a>>, Error> {
-    advance(values, mode)?;
-    let mut items = vec![];
-    loop {
-        next_token(values, mode)?;
-        if *mode == State::ArrayEnd {
-            *mode = State::None;
-            advance(values, mode)?;
-            break;
-        }
-        items.push(inner_parse(values, mode)?);
-        next_token(values, mode)?;
-        if *mode == State::ItemEnd {
-            *mode = State::None;
-            advance(values, mode)?;
-        }
-    }
-    Ok(items)
-}
-
-fn parse_item<'b, 'a>(
-    values: &'b mut &'a [u8],
-    mode: &mut State,
-) -> Result<(StringValue<'a>, Value<'a>), Error> {
-    next_token(values, mode)?;
-    let key = parse_string(values, mode)?;
-
-    next_token(values, mode)?;
-    if *mode != State::ColonSeparator {
-        return Err(Error::OutOfSpec(OutOfSpecError::KeyWithoutDoubleColon));
-    }
-    *mode = State::None;
-    next_token(values, mode)?;
-    let value = inner_parse(values, mode)?;
-    next_token(values, mode)?;
-    if !(*mode == State::ObjectEnd || *mode == State::ItemEnd) {
-        return Err(Error::OutOfSpec(OutOfSpecError::KeyWithoutDoubleColon));
-    }
-    Ok((key, value))
 }
 
 #[inline]
-pub fn advance(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    *values = &values[1..];
-    *mode = if let Some(byte) = values.get(0) {
-        next_mode(*byte, mode)?
+pub fn skip_unused(values: &mut &[u8]) {
+    while let [first, rest @ ..] = values {
+        if !matches!(first, b'\n' | b' ' | b'\r' | b'\t') {
+            break;
+        }
+        *values = rest;
+    }
+}
+
+#[inline]
+pub fn current_token(values: &[u8]) -> Result<u8, Error> {
+    if let Some(t) = values.get(0) {
+        Ok(*t)
     } else {
-        State::Finished
-    };
-    Ok(())
-}
-
-#[inline]
-pub fn next_token(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    loop {
-        if values.is_empty() {
-            break;
-        }
-        if *mode != State::None {
-            break;
-        }
-        advance(values, mode)?;
+        Err(Error::OutOfSpec(OutOfSpecError::InvalidEOF))
     }
-    Ok(())
-}
-
-#[inline]
-fn parse_null(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    _parse_null(values)?;
-    let byte = *values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    *mode = next_mode(byte, mode)?;
-    Ok(())
-}
-
-#[inline]
-fn parse_true(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    _parse_true(values)?;
-    let byte = *values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    *mode = next_mode(byte, mode)?;
-    Ok(())
-}
-
-#[inline]
-fn parse_false(values: &mut &[u8], mode: &mut State) -> Result<(), Error> {
-    _parse_false(values)?;
-    let byte = *values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    *mode = next_mode(byte, mode)?;
-    Ok(())
 }

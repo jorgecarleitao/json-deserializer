@@ -5,10 +5,12 @@
 #[macro_use]
 extern crate alloc;
 
+mod array;
 mod boolean;
 mod error;
 mod null;
 mod number;
+mod object;
 mod parser;
 mod string;
 pub use error::*;

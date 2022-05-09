@@ -1,4 +1,5 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use alloc::borrow::Cow;
+use alloc::collections::BTreeMap;
 
 use crate::{
     parser::{current_token, parse_value, skip_unused},

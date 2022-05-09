@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     parser::{current_token, parse_value, skip_unused},
     Value,

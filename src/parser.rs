@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-
+use alloc::borrow::Cow;
 use alloc::collections::BTreeMap;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use super::array::parse_array;

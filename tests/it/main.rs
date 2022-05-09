@@ -1,9 +1,11 @@
 mod json_integration;
 
-use json_parser::{parse, Error, Object, StringValue, Value};
+use std::borrow::Cow;
 
-fn string(v: &str) -> StringValue {
-    StringValue::Plain(v)
+use json_parser::{parse, Error, Object, Value};
+
+fn string(v: &str) -> Cow<str> {
+    Cow::Borrowed(v)
 }
 
 #[test]
@@ -30,7 +32,7 @@ fn basics() -> Result<(), Error> {
         (
             string("g"),
             Value::Array(vec![
-                Value::String(StringValue::Plain("b")),
+                Value::String(string("b")),
                 Value::Number(b"2"),
                 Value::Null,
                 Value::Bool(true),
@@ -89,7 +91,7 @@ fn escaped() -> Result<(), Error> {
     let item = parse(data)?;
     assert_eq!(
         item,
-        Value::Array(vec![Value::String(StringValue::String("\n".into()))])
+        Value::Array(vec![Value::String(Cow::Owned("\n".into()))])
     );
     Ok(())
 }
@@ -137,7 +139,7 @@ fn escaped_1() -> Result<(), Error> {
     let item = parse(data.as_bytes())?;
     assert_eq!(
         item,
-        Value::Array(vec![Value::String(StringValue::String("\n".to_string()))])
+        Value::Array(vec![Value::String(Cow::Owned("\n".to_string()))])
     );
     Ok(())
 }
@@ -157,7 +159,7 @@ fn codepoint() -> Result<(), Error> {
     let item = parse(data.as_bytes())?;
     assert_eq!(
         item,
-        Value::Array(vec![Value::String(StringValue::String("€".to_string()))])
+        Value::Array(vec![Value::String(Cow::Owned("€".to_string()))])
     );
     Ok(())
 }
@@ -169,7 +171,7 @@ fn multiple_escape() -> Result<(), Error> {
     let item = parse(data)?;
     assert_eq!(
         item,
-        Value::Array(vec![Value::String(StringValue::String("\\A".to_string()))])
+        Value::Array(vec![Value::String(Cow::Owned("\\A".to_string()))])
     );
     Ok(())
 }

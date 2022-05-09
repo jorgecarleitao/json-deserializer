@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
@@ -8,10 +10,10 @@ use super::error::*;
 use super::null::parse_null;
 use super::number::parse_number;
 use super::object::parse_object;
-use super::string::{parse_string, StringValue};
+use super::string::parse_string;
 
 /// Typedef for the inside of an object.
-pub type Object<'a> = BTreeMap<StringValue<'a>, Value<'a>>;
+pub type Object<'a> = BTreeMap<Cow<'a, str>, Value<'a>>;
 
 /// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -19,7 +21,7 @@ pub enum Value<'a> {
     /// A `null`
     Null,
     /// A string (i.e. something quoted; quotes are not part of this. Data has not been UTF-8 validated)
-    String(StringValue<'a>),
+    String(Cow<'a, str>),
     /// A number (i.e. something starting with a number with an optional period)
     Number(&'a [u8]),
     /// A bool (i.e. `false` or `true`)

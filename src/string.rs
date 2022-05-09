@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::borrow::Cow;
 
 use alloc::string::String;
 
@@ -57,30 +57,8 @@ fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
     Ok((length, escapes))
 }
 
-/// A JSON string, which may either be escaped and allocated
-/// or non-escaped and a reference
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum StringValue<'a> {
-    /// A JSON string with escaped characters replaced
-    String(alloc::string::String),
-    /// A JSON string without escaped characters
-    Plain(&'a str),
-}
-
-impl<'a> Deref for StringValue<'a> {
-    type Target = str;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        match self {
-            StringValue::String(string) => string.deref(),
-            StringValue::Plain(str) => str,
-        }
-    }
-}
-
 #[inline]
-pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8]) -> Result<StringValue<'a>, Error> {
+pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Cow<'a, str>, Error> {
     // compute the size of the string value and whether it has escapes
     let string = *values;
     let (length, escapes) = compute_length(values)?;
@@ -100,10 +78,10 @@ pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8]) -> Result<StringValue<'a>,
                 data = &data[1..];
             }
         }
-        Ok(StringValue::String(container))
+        Ok(Cow::Owned(container))
     } else {
         alloc::str::from_utf8(data)
-            .map(StringValue::Plain)
+            .map(Cow::Borrowed)
             .map_err(|_| Error::OutOfSpec(OutOfSpecError::InvalidUtf8))
     }
 }

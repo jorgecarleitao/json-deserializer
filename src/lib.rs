@@ -15,4 +15,3 @@ mod parser;
 mod string;
 pub use error::*;
 pub use parser::{parse, Object, Value};
-pub use string::StringValue;

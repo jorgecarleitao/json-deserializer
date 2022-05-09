@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
 use crate::{
     parser::{current_token, parse_value, skip_unused},
     string::parse_string,
-    Object, StringValue, Value,
+    Object, Value,
 };
 
 use super::error::*;
@@ -33,7 +33,7 @@ pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Erro
     Ok(items)
 }
 
-fn parse_item<'b, 'a>(values: &'b mut &'a [u8]) -> Result<(StringValue<'a>, Value<'a>), Error> {
+fn parse_item<'b, 'a>(values: &'b mut &'a [u8]) -> Result<(Cow<'a, str>, Value<'a>), Error> {
     skip_unused(values);
     let key = parse_string(values)?;
 

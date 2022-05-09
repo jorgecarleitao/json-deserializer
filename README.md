@@ -1,4 +1,4 @@
-# Rust native JSON parser
+# Rust native JSON deserializer
 
 This repository contains a performant Rust implementation to parse JSON by reference.
 
@@ -32,21 +32,20 @@ Some examples:
 
 ### Array of bools
 ```
-bool json_parser 2^20   time:   [26.067 ms 26.114 ms 26.172 ms]                                  
+bool json_deserializer 2^20   time:   [26.067 ms 26.114 ms 26.172 ms]
 bool serde_json 2^20    time:   [29.350 ms 29.405 ms 29.459 ms]
 ```
 
 ### Array of strings:
 ```
-string json_parser 2^18 time:   [10.106 ms 10.138 ms 10.173 ms]
+string json_deserializer 2^18 time:   [10.106 ms 10.138 ms 10.173 ms]
 string serde_json 2^18  time:   [24.352 ms 24.470 ms 24.616 ms]
 ```
 
 ### Array of an object with a string
 ```
-object_string json_parser 2^14
+object_string json_deserializer 2^14
                         time:   [3.1260 ms 3.1408 ms 3.1588 ms]
-
 object_string serde_json 2^14
                         time:   [4.3516 ms 4.3628 ms 4.3754 ms]
 ```
@@ -54,7 +53,7 @@ object_string serde_json 2^14
 ### Array of an object with a bool
 
 ```
-object_bool json_parser 2^10
+object_bool json_deserializer 2^10
                         time:   [165.67 us 166.27 us 166.99 us]
 object_bool serde_json 2^10
                         time:   [199.96 us 200.71 us 201.56 us]

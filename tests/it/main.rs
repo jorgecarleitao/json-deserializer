@@ -2,7 +2,7 @@ mod json_integration;
 
 use std::borrow::Cow;
 
-use json_parser::{parse, Error, Object, Value};
+use json_deserializer::{parse, Error, Object, Value};
 
 fn string(v: &str) -> Cow<str> {
     Cow::Borrowed(v)

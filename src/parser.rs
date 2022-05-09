@@ -13,7 +13,7 @@ use super::object::parse_object;
 use super::string::parse_string;
 
 /// Typedef for the inside of an object.
-pub type Object<'a> = BTreeMap<Cow<'a, str>, Value<'a>>;
+pub type Object<'a> = BTreeMap<String, Value<'a>>;
 
 /// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

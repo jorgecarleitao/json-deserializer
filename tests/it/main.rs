@@ -43,6 +43,7 @@ fn basics() -> Result<(), Error> {
         ),
     ]
     .into_iter()
+    .map(|(key, value)| (key.into_owned(), value))
     .collect::<Object>();
 
     assert_eq!(item, Value::Object(d));
@@ -69,7 +70,9 @@ fn comma_and_string() -> Result<(), Error> {
 fn empty_object() -> Result<(), Error> {
     let data: &[u8] = b"[{\"\":null}]";
 
-    let o = [(string(""), Value::Null)].into_iter().collect::<Object>();
+    let o = [(string("").into_owned(), Value::Null)]
+        .into_iter()
+        .collect::<Object>();
 
     let item = parse(data)?;
     assert_eq!(item, Value::Array(vec![Value::Object(o)]));

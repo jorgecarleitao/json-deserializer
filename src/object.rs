@@ -28,7 +28,7 @@ pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Erro
         }
 
         let (k, v) = parse_item(values)?;
-        items.insert(k, v);
+        items.insert(k.into_owned(), v);
     }
     Ok(items)
 }

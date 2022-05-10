@@ -42,6 +42,9 @@ bool simd_json 2^20           time:   [31.440 ms 31.486 ms 31.531 ms]
 string json_deserializer 2^18 time:   [10.106 ms 10.138 ms 10.173 ms]
 string serde_json 2^18        time:   [23.177 ms 23.209 ms 23.243 ms]
 string simd_json 2^18         time:   [10.924 ms 10.941 ms 10.959 ms]
+
+# with `RUSTFLAGS='-C target-cpu=native'` (skilake in this case)
+string simd_json 2^18         time:   [8.0735 ms 8.0887 ms 8.1046 ms]
 ```
 
 ### Array of an object with a string

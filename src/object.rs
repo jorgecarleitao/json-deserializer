@@ -23,9 +23,8 @@ pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Erro
         if !items.is_empty() {
             if token != b',' {
                 return Err(Error::OutOfSpec(OutOfSpecError::MissingComa(values[0])));
-            } else {
-                *values = &values[1..]; // consume ","
             }
+            *values = &values[1..]; // consume ","
         }
 
         let (k, v) = parse_item(values)?;
@@ -34,6 +33,7 @@ pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Erro
     Ok(items)
 }
 
+#[inline]
 fn parse_item<'b, 'a>(values: &'b mut &'a [u8]) -> Result<(Cow<'a, str>, Value<'a>), Error> {
     skip_unused(values);
     let key = parse_string(values)?;
@@ -41,11 +41,10 @@ fn parse_item<'b, 'a>(values: &'b mut &'a [u8]) -> Result<(Cow<'a, str>, Value<'
     skip_unused(values);
     let token = current_token(values)?;
     if token != b':' {
-        return Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(values[0])));
+        return Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(token)));
     };
     *values = &values[1..];
 
-    skip_unused(values);
     let value = parse_value(values)?;
     Ok((key, value))
 }

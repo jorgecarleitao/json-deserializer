@@ -32,29 +32,35 @@ Some examples:
 
 ### Array of bools
 ```
-bool json_deserializer 2^20   time:   [26.067 ms 26.114 ms 26.172 ms]
-bool serde_json 2^20    time:   [29.350 ms 29.405 ms 29.459 ms]
+bool json_deserializer 2^20   time:   [26.022 ms 26.056 ms 26.090 ms]
+bool serde_json 2^20          time:   [30.419 ms 30.468 ms 30.516 ms]
+bool simd_json 2^20           time:   [31.440 ms 31.486 ms 31.531 ms] 
 ```
 
-### Array of strings:
+### Array of strings
 ```
 string json_deserializer 2^18 time:   [10.106 ms 10.138 ms 10.173 ms]
-string serde_json 2^18  time:   [24.352 ms 24.470 ms 24.616 ms]
+string serde_json 2^18        time:   [23.177 ms 23.209 ms 23.243 ms]
+string simd_json 2^18         time:   [10.924 ms 10.941 ms 10.959 ms]
 ```
 
 ### Array of an object with a string
 ```
 object_string json_deserializer 2^14
-                        time:   [3.1260 ms 3.1408 ms 3.1588 ms]
+                        time:   [2.7631 ms 2.7681 ms 2.7736 ms]
 object_string serde_json 2^14
-                        time:   [4.3516 ms 4.3628 ms 4.3754 ms]
+                        time:   [4.3729 ms 4.3823 ms 4.3922 ms]
+object_string simd_json 2^14
+                        time:   [2.6313 ms 2.6357 ms 2.6401 ms]
 ```
 
 ### Array of an object with a bool
 
 ```
 object_bool json_deserializer 2^10
-                        time:   [165.67 us 166.27 us 166.99 us]
+                        time:   [144.14 us 144.35 us 144.62 us]
 object_bool serde_json 2^10
-                        time:   [199.96 us 200.71 us 201.56 us]
+                        time:   [197.12 us 197.62 us 198.31 us]
+object_bool simd_json 2^10
+                        time:   [160.87 us 161.33 us 161.77 us]
 ```

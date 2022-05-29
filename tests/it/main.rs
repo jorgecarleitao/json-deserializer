@@ -2,7 +2,7 @@ mod json_integration;
 
 use std::borrow::Cow;
 
-use json_deserializer::{parse, Error, Number, Object, Value};
+use json_deserializer::{parse, Error, Number, Object, OutOfSpecError, Value};
 
 fn string(v: &str) -> Cow<str> {
     Cow::Borrowed(v)
@@ -228,4 +228,33 @@ fn pretty_1() -> Result<(), Error> {
     let item = parse(data)?;
     assert_eq!(item, Value::Array(vec![Value::Null]));
     Ok(())
+}
+
+#[test]
+fn edges() {
+    assert!(parse(br#"""#).is_err());
+    assert!(parse(br#""""#).is_ok());
+    assert!(parse(br#""\u"#).is_err());
+    assert!(parse(br#""\u""#).is_err());
+    assert!(parse(br#""\u"""#).is_err());
+    assert!(parse(br#""\u1234""#).is_ok());
+
+    assert!(parse(br#"nula"#).is_err());
+    assert!(parse(br#"trua"#).is_err());
+    assert!(parse(br#"falsa"#).is_err());
+
+    assert!(parse(br#"[1.1.1]"#).is_err());
+    assert!(parse(br#"[1p]"#).is_err());
+    assert!(parse(br#"{"a": 1p}"#).is_err());
+    assert!(parse(br#"{"a"a: 1}"#).is_err());
+}
+
+#[test]
+fn err_fmt() {
+    let er = parse(br#"paa"#).err().unwrap();
+    assert_eq!(
+        format!("{}", er),
+        "OutOfSpec(InvalidToken(112))".to_string()
+    );
+    assert_eq!(er, Error::OutOfSpec(OutOfSpecError::InvalidToken(112)))
 }

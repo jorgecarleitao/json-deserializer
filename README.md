@@ -1,3 +1,6 @@
+[![test](https://github.com/jorgecarleitao/json-deserializer/actions/workflows/test.yml/badge.svg)](https://github.com/jorgecarleitao/json-deserializer/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/jorgecarleitao/json-deserializer/branch/main/graph/badge.svg?token=AgyTF60R3D)](https://codecov.io/gh/jorgecarleitao/json-deserializer)
+
 # Rust native JSON deserializer
 
 This repository contains a performant Rust implementation to parse JSON by reference.

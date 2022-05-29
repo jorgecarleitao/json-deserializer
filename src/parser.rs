@@ -16,6 +16,15 @@ use super::string::parse_string;
 pub type Object<'a> = BTreeMap<String, Value<'a>>;
 
 /// Reference to JSON data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Number<'a> {
+    /// A float (contains exactly 1 period)
+    Float(&'a [u8], &'a [u8]),
+    /// An integer (contains exactly 0 periods)
+    Integer(&'a [u8], &'a [u8]),
+}
+
+/// Reference to JSON data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Value<'a> {
     /// A `null`
@@ -23,7 +32,7 @@ pub enum Value<'a> {
     /// A string (i.e. something quoted; quotes are not part of this. Data has not been UTF-8 validated)
     String(Cow<'a, str>),
     /// A number (i.e. something starting with a number with an optional period)
-    Number(&'a [u8]),
+    Number(Number<'a>),
     /// A bool (i.e. `false` or `true`)
     Bool(bool),
     /// An object (i.e. items inside curly brackets `{}` separated by colon `:` and comma `,`)

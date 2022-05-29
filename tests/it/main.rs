@@ -2,7 +2,7 @@ mod json_integration;
 
 use std::borrow::Cow;
 
-use json_deserializer::{parse, Error, Object, Value};
+use json_deserializer::{parse, Error, Number, Object, Value};
 
 fn string(v: &str) -> Cow<str> {
     Cow::Borrowed(v)
@@ -25,7 +25,7 @@ fn basics() -> Result<(), Error> {
     let d = [
         (string("a"), Value::String(string("b"))),
         (string("b"), Value::String(string("c"))),
-        (string("c"), Value::Number(b"1.1")),
+        (string("c"), Value::Number(Number::Float(b"1.1", b""))),
         (string("d"), Value::Null),
         (string("e"), Value::Bool(false)),
         (string("f"), Value::Bool(true)),
@@ -33,7 +33,7 @@ fn basics() -> Result<(), Error> {
             string("g"),
             Value::Array(vec![
                 Value::String(string("b")),
-                Value::Number(b"2"),
+                Value::Number(Number::Integer(b"2", b"")),
                 Value::Null,
                 Value::Bool(true),
                 Value::Bool(false),
@@ -60,7 +60,7 @@ fn comma_and_string() -> Result<(), Error> {
         Value::Array(vec![
             Value::String(string(",")),
             Value::String(string("1.2")),
-            Value::Number(b"1.2")
+            Value::Number(Number::Float(b"1.2", b""))
         ])
     );
     Ok(())
@@ -122,7 +122,10 @@ fn number() -> Result<(), Error> {
     let data: &str = "[10]";
 
     let item = parse(data.as_bytes())?;
-    assert_eq!(item, Value::Array(vec![Value::Number(b"10")]));
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::Number(Number::Integer(b"10", b""))])
+    );
     Ok(())
 }
 
@@ -184,16 +187,37 @@ fn number_exponent() -> Result<(), Error> {
     let data: &[u8] = b"[1E10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number(b"1E10")]));
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::Number(Number::Integer(b"1", b"10"))])
+    );
     Ok(())
 }
 
 #[test]
 fn number_exponent1() -> Result<(), Error> {
-    let data: &[u8] = b"[1e10]";
+    let data: &[u8] = b"[1e-10]";
 
     let item = parse(data)?;
-    assert_eq!(item, Value::Array(vec![Value::Number(b"1e10")]));
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::Number(Number::Integer(b"1", b"-10"))])
+    );
+    Ok(())
+}
+
+#[test]
+fn number_exponent2() -> Result<(), Error> {
+    let data: &[u8] = b"[8.310346185542391e275]";
+
+    let item = parse(data)?;
+    assert_eq!(
+        item,
+        Value::Array(vec![Value::Number(Number::Float(
+            b"8.310346185542391",
+            b"275"
+        ))])
+    );
     Ok(())
 }
 

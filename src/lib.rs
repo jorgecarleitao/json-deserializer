@@ -14,4 +14,4 @@ mod object;
 mod parser;
 mod string;
 pub use error::*;
-pub use parser::{parse, Object, Value};
+pub use parser::{parse, Number, Object, Value};

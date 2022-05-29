@@ -1,45 +1,79 @@
 use super::error::*;
+use super::Number;
 
 #[inline]
-pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<&'a [u8], Error> {
-    let string = *values;
+pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Error> {
+    let number = *values;
+
+    let mut is_float = false;
+    let mut number_end = 0;
     let mut length = 0;
-    let mut state = State::Number(false);
+
+    let mut prev_state = State::Start;
+    let byte = values
+        .get(0)
+        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    let mut state = next_state(*byte, prev_state)?;
+
     loop {
+        if let State::Fraction = state {
+            is_float = true
+        }
         length += 1;
-        state = advance(values, state)?;
+        *values = values
+            .get(1..)
+            .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+        let byte = values
+            .get(0)
+            .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+
+        prev_state = state;
+        state = next_state(*byte, state)?;
+
+        if matches!(prev_state, State::Number | State::Fraction) {
+            number_end += 1
+        };
+
         if state == State::Finished {
             break;
         }
     }
-    Ok(&string[..length])
+    let number = &number[..length];
+    let exponent = if number_end == number.len() {
+        &[]
+    } else {
+        &number[number_end + 1..]
+    };
+    let number = &number[..number_end];
+    Ok(if is_float {
+        Number::Float(number, exponent)
+    } else {
+        Number::Integer(number, exponent)
+    })
 }
 
 /// The state of the string lexer
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum State {
-    Finished,     // when it is done
-    Number(bool), // something between double quotes
+    Finished, // when it is done
+    Start,
+    Number,
+    Fraction,
+    Exponent,
 }
 
 /// The transition state of the lexer
 #[inline]
-fn next_state(byte: u8, mode: State) -> Result<State, Error> {
-    Ok(match (byte, mode) {
-        // number
-        (b'0'..=b'9' | b'-' | b'E' | b'e', State::Number(_)) => mode,
-        (b'0'..=b'9' | b'-', _) => State::Number(false),
-        (b'.', State::Number(false)) => State::Number(true),
-        (b'.', _) => return Err(Error::OutOfSpec(OutOfSpecError::NumberWithTwoPeriods)),
+fn next_state(byte: u8, state: State) -> Result<State, Error> {
+    Ok(match (byte, state) {
+        (b'0'..=b'9' | b'-', State::Start) => State::Number,
+        (b'.', State::Number) => State::Fraction,
+        (b'0'..=b'9', State::Number | State::Fraction) => state,
+        (b'E' | b'e', State::Number | State::Fraction) => State::Exponent,
+        (b'0'..=b'9' | b'-', State::Exponent) => State::Exponent,
+        (b'E' | b'e' | b'.' | b'-', _) => {
+            return Err(Error::OutOfSpec(OutOfSpecError::NumberWithTwoPeriods))
+        }
         (_, _) => State::Finished,
     })
-}
-
-#[inline]
-fn advance(values: &mut &[u8], state: State) -> Result<State, Error> {
-    *values = &values[1..];
-    let byte = values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    next_state(*byte, state)
 }

@@ -61,7 +61,7 @@ pub fn parse_value<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Value<'a>, Error>
         b't' => parse_true(values).map(|_| Value::Bool(true)),
         b'f' => parse_false(values).map(|_| Value::Bool(false)),
         b'0'..=b'9' | b'-' => parse_number(values).map(Value::Number),
-        other => Err(Error::OutOfSpec(OutOfSpecError::InvalidToken(other))),
+        other => Err(Error::InvalidToken(other)),
     }
 }
 
@@ -80,6 +80,6 @@ pub fn current_token(values: &[u8]) -> Result<u8, Error> {
     if let Some(t) = values.get(0) {
         Ok(*t)
     } else {
-        Err(Error::OutOfSpec(OutOfSpecError::InvalidEOF))
+        Err(Error::InvalidEOF)
     }
 }

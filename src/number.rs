@@ -10,9 +10,7 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
     let mut length = 0;
 
     let mut prev_state = State::Start;
-    let byte = values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+    let byte = values.get(0).ok_or(Error::InvalidEOF)?;
     let mut state = next_state(*byte, prev_state)?;
 
     loop {
@@ -20,12 +18,8 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
             is_float = true
         }
         length += 1;
-        *values = values
-            .get(1..)
-            .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-        let byte = values
-            .get(0)
-            .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
+        *values = values.get(1..).ok_or(Error::InvalidEOF)?;
+        let byte = values.get(0).ok_or(Error::InvalidEOF)?;
 
         prev_state = state;
         state = next_state(*byte, state)?;
@@ -53,7 +47,7 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
 }
 
 /// The state of the string lexer
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum State {
     Finished, // when it is done
     Start,
@@ -65,15 +59,13 @@ pub enum State {
 /// The transition state of the lexer
 #[inline]
 fn next_state(byte: u8, state: State) -> Result<State, Error> {
-    Ok(match (byte, state) {
+    Ok(match (byte, &state) {
         (b'0'..=b'9' | b'-', State::Start) => State::Number,
         (b'.', State::Number) => State::Fraction,
         (b'0'..=b'9', State::Number | State::Fraction) => state,
         (b'E' | b'e', State::Number | State::Fraction) => State::Exponent,
         (b'0'..=b'9' | b'-', State::Exponent) => State::Exponent,
-        (b'E' | b'e' | b'.' | b'-', _) => {
-            return Err(Error::OutOfSpec(OutOfSpecError::NumberWithTwoPeriods))
-        }
+        (b'E' | b'e' | b'.' | b'-', _) => return Err(Error::NumberWithTwoPeriods),
         (_, _) => State::Finished,
     })
 }

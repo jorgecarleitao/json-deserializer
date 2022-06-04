@@ -19,7 +19,7 @@ pub fn parse_array<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Vec<Value<'a>>, E
         };
         if !items.is_empty() {
             if token != b',' {
-                return Err(Error::OutOfSpec(OutOfSpecError::MissingComa(token)));
+                return Err(Error::MissingComa(token));
             } else {
                 *values = &values[1..]; // consume ","
             }

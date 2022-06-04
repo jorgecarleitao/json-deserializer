@@ -2,7 +2,7 @@ mod json_integration;
 
 use std::borrow::Cow;
 
-use json_deserializer::{parse, Error, Number, Object, OutOfSpecError, Value};
+use json_deserializer::{parse, Error, Number, Object, Value};
 
 fn string(v: &str) -> Cow<str> {
     Cow::Borrowed(v)
@@ -82,14 +82,6 @@ fn empty_object() -> Result<(), Error> {
 #[test]
 fn escaped() -> Result<(), Error> {
     let data: &[u8] = br#"["\n"]"#;
-
-    /*
-    let a: serde_json::Value = serde_json::from_slice(br#""\n""#).unwrap();
-    if let serde_json::Value::String(a) = a {
-        println!("{:?}", a.as_bytes());
-    }
-    println!("eol: {:?}", "\n".as_bytes());
-    */
 
     let item = parse(data)?;
     assert_eq!(
@@ -232,6 +224,7 @@ fn pretty_1() -> Result<(), Error> {
 
 #[test]
 fn edges() {
+    assert!(parse(br#""#).is_err());
     assert!(parse(br#"""#).is_err());
     assert!(parse(br#""""#).is_ok());
     assert!(parse(br#""\u"#).is_err());
@@ -247,14 +240,44 @@ fn edges() {
     assert!(parse(br#"[1p]"#).is_err());
     assert!(parse(br#"{"a": 1p}"#).is_err());
     assert!(parse(br#"{"a"a: 1}"#).is_err());
+
+    assert!(parse(br#""\/""#).is_ok());
+    assert!(parse(br#""\f""#).is_ok());
+
+    // \xc3\x28 is invalid utf8
+    assert!(parse(&[34, 195, 40, 34]).is_err());
 }
 
 #[test]
 fn err_fmt() {
     let er = parse(br#"paa"#).err().unwrap();
-    assert_eq!(
-        format!("{}", er),
-        "OutOfSpec(InvalidToken(112))".to_string()
-    );
-    assert_eq!(er, Error::OutOfSpec(OutOfSpecError::InvalidToken(112)))
+    assert_eq!(format!("{}", er), "InvalidToken(112)".to_string());
+    assert_eq!(format!("{:?}", er), "InvalidToken(112)".to_string());
+    assert_eq!(er, Error::InvalidToken(112))
+}
+
+#[test]
+fn surrogates() {
+    assert!(parse(br#""\uDC00""#).is_err());
+
+    assert!(parse(br#""\uD83C""#).is_err());
+
+    assert!(parse(br#""\uD83C\uDF95""#).is_ok());
+    assert!(parse(br#""\uD83C\uFFFF""#).is_err());
+    assert!(parse(br#""\uD83C\FDF95""#).is_err());
+    assert!(parse(br#""\uD83C\\""#).is_ok());
+    assert!(parse(br#""\uDB00""#).is_err());
+    assert!(parse(br#""\uFFFF""#).is_ok());
+    assert!(parse(br#""\u\FFFF""#).is_err());
+    assert!(parse(br#""\uDD00""#).is_err());
+}
+
+#[test]
+fn value_fmt() {
+    assert_eq!(format!("{:?}", Value::Null), "Null".to_string());
+}
+
+#[test]
+fn can_clone() {
+    let _ = Value::Null.clone();
 }

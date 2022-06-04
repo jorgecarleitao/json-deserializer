@@ -2,41 +2,44 @@ use alloc::borrow::Cow;
 
 use alloc::string::String;
 
-use super::{Error, OutOfSpecError};
+use super::Error;
 
 /// The state of the string lexer
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq)]
 pub enum State {
-    Finished,      // when it is done
-    Escape,        // \
-    String,        // something between double quotes
-    Codepoint(u8), // parsing \uXXXX (0 => u, 1-3 => X)
+    Finished, // when it is done
+    Escape,   // \
+    String,   // something between double quotes
+    // parsing \uXXXX (0 => u, 1-3 => X)
+    Codepoint0,
+    Codepoint1,
+    Codepoint2,
+    Codepoint3,
 }
 
-/// The transition state of the lexer
+/// The transition state of the lexer.
+/// The function panics when called with [`State::Finished`]
 #[inline]
-fn next_mode(byte: u8, mode: State) -> Result<State, Error> {
-    Ok(match (byte, mode) {
-        (_, State::Codepoint(0)) => State::Codepoint(1),
-        (_, State::Codepoint(1)) => State::Codepoint(2),
-        (_, State::Codepoint(2)) => State::Codepoint(3),
-        (_, State::Codepoint(3)) => State::String,
+fn next_mode(byte: u8, mode: State) -> State {
+    match (byte, &mode) {
+        (_, State::Codepoint0) => State::Codepoint1,
+        (_, State::Codepoint1) => State::Codepoint2,
+        (_, State::Codepoint2) => State::Codepoint3,
+        (_, State::Codepoint3) => State::String,
         (b'"', State::String) => State::Finished,
-        (b'u', State::Escape) => State::Codepoint(0),
+        (b'u', State::Escape) => State::Codepoint0,
         (_, State::Escape) => State::String,
         (b'\\', State::String) => State::Escape,
         (_, State::String) => mode,
-        (token, _) => return Err(Error::OutOfSpec(OutOfSpecError::InvalidStringToken(token))),
-    })
+        (_, State::Finished) => unreachable!(),
+    }
 }
 
 #[inline]
 fn advance(values: &mut &[u8], mode: State) -> Result<State, Error> {
     *values = &values[1..];
-    let byte = values
-        .get(0)
-        .ok_or(Error::OutOfSpec(OutOfSpecError::InvalidEOF))?;
-    next_mode(*byte, mode)
+    let byte = values.get(0).ok_or(Error::InvalidEOF)?;
+    Ok(next_mode(*byte, mode))
 }
 
 fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
@@ -82,16 +85,8 @@ pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Cow<'a, str>, Er
     } else {
         alloc::str::from_utf8(data)
             .map(Cow::Borrowed)
-            .map_err(|_| Error::OutOfSpec(OutOfSpecError::InvalidUtf8))
+            .map_err(|_| Error::InvalidUtf8)
     }
-}
-
-fn encode_surrogate(n: u16) -> [u8; 3] {
-    [
-        (n >> 12 & 0b0000_1111) as u8 | 0b1110_0000,
-        (n >> 6 & 0b0011_1111) as u8 | 0b1000_0000,
-        (n & 0b0011_1111) as u8 | 0b1000_0000,
-    ]
 }
 
 #[allow(clippy::zero_prefixed_literal)]
@@ -118,6 +113,7 @@ static HEX: [u8; 256] = {
     ]
 };
 
+#[inline]
 fn decode_hex_val(val: u8) -> Option<u16> {
     let n = HEX[val as usize] as u16;
     if n == 255 {
@@ -147,62 +143,36 @@ fn parse_escape<'a>(mut input: &'a [u8], scratch: &mut String) -> Result<&'a [u8
 
             let c = match hex {
                 n @ 0xDC00..=0xDFFF => {
-                    let bytes = encode_surrogate(n);
-
-                    scratch.push_str(alloc::str::from_utf8(&bytes).unwrap());
-
-                    return Ok(input);
+                    return Err(Error::InvalidLoneLeadingSurrogateInHexEscape(n))
                 }
 
                 // Non-BMP characters are encoded as a sequence of two hex
                 // escapes, representing UTF-16 surrogates. If deserializing a
                 // utf-8 string the surrogates are required to be paired,
                 // whereas deserializing a byte string accepts lone surrogates.
-                _n1 @ 0xD800..=0xDBFF => {
-                    return Err(Error::TwoUTF16SurrogatesNotYetImplemented);
-                    /*
-                    if tri!(peek_or_eof(read)) == b'\\' {
-                        read.discard();
+                n1 @ 0xD800..=0xDBFF => {
+                    let byte = input.get(0).ok_or(Error::InvalidEOF)?;
+                    if *byte == b'\\' {
+                        input = &input[1..];
                     } else {
-                        return if validate {
-                            error(read, ErrorCode::UnexpectedEndOfHexEscape)
-                        } else {
-                            encode_surrogate(scratch, n1);
-                            Ok(())
-                        };
+                        return Err(Error::UnexpectedEndOfHexEscape);
                     }
 
-                    if tri!(peek_or_eof(read)) == b'u' {
-                        read.discard();
+                    let byte = input.get(0).ok_or(Error::InvalidEOF)?;
+                    if *byte == b'u' {
+                        input = &input[1..];
                     } else {
-                        return if validate {
-                            error(read, ErrorCode::UnexpectedEndOfHexEscape)
-                        } else {
-                            encode_surrogate(scratch, n1);
-                            // The \ prior to this byte started an escape sequence,
-                            // so we need to parse that now. This recursive call
-                            // does not blow the stack on malicious input because
-                            // the escape is not \u, so it will be handled by one
-                            // of the easy nonrecursive cases.
-                            parse_escape(read, validate, scratch)
-                        };
+                        return parse_escape(input, scratch);
                     }
 
-                    let n2 = tri!(read.decode_hex_escape());
-
-                    if n2 < 0xDC00 || n2 > 0xDFFF {
-                        return error(read, ErrorCode::LoneLeadingSurrogateInHexEscape);
+                    let n2 = decode_hex_escape(input)?;
+                    input = &input[4..];
+                    if !(0xDC00..=0xDFFF).contains(&n2) {
+                        return Err(Error::InvalidSurrogateInHexEscape(n2));
                     }
 
                     let n = (((n1 - 0xD800) as u32) << 10 | (n2 - 0xDC00) as u32) + 0x1_0000;
-
-                    match char::from_u32(n) {
-                        Some(c) => c,
-                        None => {
-                            return error(read, ErrorCode::InvalidUnicodeCodePoint);
-                        }
-                    }
-                    */
+                    char::from_u32(n as u32).unwrap()
                 }
 
                 // Every u16 outside of the surrogate ranges above is guaranteed
@@ -212,7 +182,7 @@ fn parse_escape<'a>(mut input: &'a [u8], scratch: &mut String) -> Result<&'a [u8
 
             scratch.push(c);
         }
-        other => return Err(Error::OutOfSpec(OutOfSpecError::InvalidEscaped(other))),
+        other => return Err(Error::InvalidEscaped(other)),
     }
 
     Ok(input)
@@ -222,8 +192,7 @@ fn decode_hex_escape(input: &[u8]) -> Result<u16, Error> {
     let numbers_u8: [u8; 4] = input[..4].try_into().unwrap();
     let mut n = 0;
     for number in numbers_u8 {
-        let hex =
-            decode_hex_val(number).ok_or(Error::OutOfSpec(OutOfSpecError::InvalidHex(number)))?;
+        let hex = decode_hex_val(number).ok_or(Error::InvalidHex(number))?;
         n = (n << 4) + hex;
     }
     Ok(n)

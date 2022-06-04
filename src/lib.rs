@@ -1,6 +1,6 @@
 //! Library to parse JSON
 #![deny(missing_docs)]
-#![no_std]
+//#![no_std]
 #![forbid(unsafe_code)]
 #[macro_use]
 extern crate alloc;

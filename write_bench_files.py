@@ -11,6 +11,10 @@ for log2_size in range(10,22, 2):
     with open(f"data/string_{log2_size}.json", "w") as f:
         json.dump(data, f)
 
+    data = ["this is something \u20AC \""] * size
+    with open(f"data/string_escaped_chars_{log2_size}.json", "w") as f:
+        json.dump(data, f)
+
     data = list(range(0, size))
     with open(f"data/integer_{log2_size}.json", "w") as f:
         json.dump(data, f)

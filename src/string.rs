@@ -4,60 +4,43 @@ use alloc::string::String;
 
 use super::Error;
 
-/// The state of the string lexer
-#[derive(PartialEq, Eq)]
-pub enum State {
-    Finished, // when it is done
-    Escape,   // \
-    String,   // something between double quotes
-    // parsing \uXXXX (0 => u, 1-3 => X)
-    Codepoint0,
-    Codepoint1,
-    Codepoint2,
-    Codepoint3,
-}
-
-/// The transition state of the lexer.
-/// The function panics when called with [`State::Finished`]
 #[inline]
-fn next_mode(byte: u8, mode: State) -> State {
-    match (byte, &mode) {
-        (_, State::Codepoint0) => State::Codepoint1,
-        (_, State::Codepoint1) => State::Codepoint2,
-        (_, State::Codepoint2) => State::Codepoint3,
-        (_, State::Codepoint3) => State::String,
-        (b'"', State::String) => State::Finished,
-        (b'u', State::Escape) => State::Codepoint0,
-        (_, State::Escape) => State::String,
-        (b'\\', State::String) => State::Escape,
-        (_, State::String) => mode,
-        (_, State::Finished) => unreachable!(),
+fn skip_escape(values: &mut &[u8]) -> Result<usize, Error> {
+    *values = &values[1..];
+    let ch = *values.get(0).ok_or(Error::InvalidEOF)?;
+    if ch == b'u' {
+        const NUM_UNICODE_CHARS: usize = 4;
+        if values.len() < NUM_UNICODE_CHARS {
+            return Err(Error::InvalidEOF);
+        } else {
+            *values = &values[NUM_UNICODE_CHARS..];
+        }
+        Ok(NUM_UNICODE_CHARS + 1)
+    } else {
+        Ok(1)
     }
 }
 
 #[inline]
-fn advance(values: &mut &[u8], mode: State) -> Result<State, Error> {
-    *values = &values[1..];
-    let byte = values.get(0).ok_or(Error::InvalidEOF)?;
-    Ok(next_mode(*byte, mode))
-}
-
 fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
     let mut length = 0;
     let mut escapes = 0;
-    let mut mode = State::String;
     loop {
+        *values = &values[1..];
+        let ch = *values.get(0).ok_or(Error::InvalidEOF)?;
         length += 1;
-        mode = advance(values, mode)?;
-        if mode == State::Escape {
-            escapes += 1
-        };
-        if mode == State::Finished {
-            *values = &values[1..];
-            break;
+        match ch {
+            b'\\' => {
+                escapes += 1;
+                length += skip_escape(values)?;
+            }
+            b'"' => {
+                *values = &values[1..];
+                return Ok((length, escapes));
+            }
+            _ => {}
         }
     }
-    Ok((length, escapes))
 }
 
 #[inline]

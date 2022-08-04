@@ -1,5 +1,4 @@
 use alloc::borrow::Cow;
-use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -13,7 +12,11 @@ use super::object::parse_object;
 use super::string::parse_string;
 
 /// Typedef for the inside of an object.
-pub type Object<'a> = BTreeMap<String, Value<'a>>;
+#[cfg(not(feature = "preserve_order"))]
+pub type Object<'a> = alloc::collections::BTreeMap<String, Value<'a>>;
+/// Typedef for the inside of an object.
+#[cfg(feature = "preserve_order")]
+pub type Object<'a> = indexmap::IndexMap<String, Value<'a>>;
 
 /// Reference to JSON data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,7 +28,7 @@ pub enum Number<'a> {
 }
 
 /// Reference to JSON data.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value<'a> {
     /// A `null`
     Null,

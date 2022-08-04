@@ -9,6 +9,9 @@ authors = ["Jorge C. Leitao <jorgecarleitao@gmail.com>"]
 keywords = [ "json" ]
 edition = "2021"
 
+[dependencies]
+indexmap = { version = "1.5.2", optional = true, default_features = false }
+
 [dev-dependencies]
 proptest = "1"
 serde = {version="1", features = ["derive"]}
@@ -17,8 +20,9 @@ simd-json = {version = "0.4", features = ["allow-non-simd"]}
 
 criterion = "0.3"
 
-[profile.release]
-debug = true
+[features]
+default = []
+preserve_order = ["indexmap"]
 
 [[bench]]
 name = "parse"

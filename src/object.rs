@@ -1,5 +1,4 @@
 use alloc::borrow::Cow;
-use alloc::collections::BTreeMap;
 
 use crate::{
     parser::{current_token, parse_value, skip_unused},
@@ -12,7 +11,7 @@ use super::error::*;
 // assumes that `values` contains `{`
 pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Error> {
     *values = &values[1..];
-    let mut items = BTreeMap::new();
+    let mut items = Object::new();
     loop {
         skip_unused(values);
         let token = current_token(values)?;

@@ -281,3 +281,26 @@ fn value_fmt() {
 fn can_clone() {
     let _ = Value::Null.clone();
 }
+
+#[cfg(feature = "preserve_order")]
+#[test]
+fn object() -> Result<(), Error> {
+    let data: &[u8] = r#"{"u64": 1, "f64": 0.1, "utf8": "foo1", "bools": true}
+    "#
+    .as_bytes();
+
+    let item = parse(data)?;
+
+    let d = [
+        (string("u64"), Value::Number(Number::Integer(b"1", b""))),
+        (string("f64"), Value::Number(Number::Float(b"0.1", b""))),
+        (string("utf8"), Value::String(string("foo1"))),
+        (string("bools"), Value::Bool(true)),
+    ]
+    .into_iter()
+    .map(|(key, value)| (key.into_owned(), value))
+    .collect::<Object>();
+
+    assert_eq!(item, Value::Object(d));
+    Ok(())
+}

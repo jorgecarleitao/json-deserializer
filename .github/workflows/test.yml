@@ -15,7 +15,7 @@ jobs:
       - name: test
         run: cargo test
 
-  test:
+  test-preserve-order:
     name: Test preserve order
     runs-on: ubuntu-latest
     steps:

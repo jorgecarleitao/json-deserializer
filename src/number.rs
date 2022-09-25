@@ -18,6 +18,10 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
             is_float = true
         }
         length += 1;
+
+        if values.len() == 1 {
+            break;
+        }
         *values = values.get(1..).ok_or(Error::InvalidEOF)?;
         let byte = values.get(0).ok_or(Error::InvalidEOF)?;
 

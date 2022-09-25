@@ -232,6 +232,12 @@ fn edges() {
     assert!(parse(br#""\u"""#).is_err());
     assert!(parse(br#""\u1234""#).is_ok());
 
+    assert!(parse(br#"1"#).is_ok());
+    assert!(parse(br#"11"#).is_ok());
+    assert!(parse(br#"1.1"#).is_ok());
+    assert!(parse(br#"1.1E-6"#).is_ok());
+    assert!(parse(br#"1.1e-6"#).is_ok());
+
     assert!(parse(br#"nula"#).is_err());
     assert!(parse(br#"trua"#).is_err());
     assert!(parse(br#"falsa"#).is_err());

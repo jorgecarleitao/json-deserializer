@@ -19,18 +19,20 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
         }
         length += 1;
 
-        if values.len() == 1 {
-            break;
-        }
-        *values = values.get(1..).ok_or(Error::InvalidEOF)?;
-        let byte = values.get(0).ok_or(Error::InvalidEOF)?;
-
         prev_state = state;
-        state = next_state(*byte, state)?;
 
         if matches!(prev_state, State::Number | State::Fraction) {
             number_end += 1
         };
+
+        if values.len() == 1 {
+            break;
+        }
+
+        *values = values.get(1..).ok_or(Error::InvalidEOF)?;
+        let byte = values.get(0).ok_or(Error::InvalidEOF)?;
+
+        state = next_state(*byte, state)?;
 
         if state == State::Finished {
             break;

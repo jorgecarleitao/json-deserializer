@@ -111,11 +111,15 @@ fn empty_string() -> Result<(), Error> {
 
 #[test]
 fn number() -> Result<(), Error> {
-    let data: &str = "[10]";
+    let num: &str = "10";
+    let array: &str = &format!("[{}]", num);
 
-    let item = parse(data.as_bytes())?;
     assert_eq!(
-        item,
+        parse(num.as_bytes())?,
+        Value::Number(Number::Integer(b"10", b""))
+    );
+    assert_eq!(
+        parse(array.as_bytes())?,
         Value::Array(vec![Value::Number(Number::Integer(b"10", b""))])
     );
     Ok(())
@@ -176,11 +180,15 @@ fn multiple_escape() -> Result<(), Error> {
 
 #[test]
 fn number_exponent() -> Result<(), Error> {
-    let data: &[u8] = b"[1E10]";
+    let num: &str = "1E10";
+    let array: &str = &format!("[{}]", num);
 
-    let item = parse(data)?;
     assert_eq!(
-        item,
+        parse(num.as_bytes())?,
+        Value::Number(Number::Integer(b"1", b"10"))
+    );
+    assert_eq!(
+        parse(array.as_bytes())?,
         Value::Array(vec![Value::Number(Number::Integer(b"1", b"10"))])
     );
     Ok(())
@@ -188,11 +196,15 @@ fn number_exponent() -> Result<(), Error> {
 
 #[test]
 fn number_exponent1() -> Result<(), Error> {
-    let data: &[u8] = b"[1e-10]";
+    let num: &str = "1e-10";
+    let array: &str = &format!("[{}]", num);
 
-    let item = parse(data)?;
     assert_eq!(
-        item,
+        parse(num.as_bytes())?,
+        Value::Number(Number::Integer(b"1", b"-10"))
+    );
+    assert_eq!(
+        parse(array.as_bytes())?,
         Value::Array(vec![Value::Number(Number::Integer(b"1", b"-10"))])
     );
     Ok(())
@@ -200,15 +212,16 @@ fn number_exponent1() -> Result<(), Error> {
 
 #[test]
 fn number_exponent2() -> Result<(), Error> {
-    let data: &[u8] = b"[8.310346185542391e275]";
+    let num: &str = "8.310346185542391e275";
+    let array: &str = &format!("[{}]", num);
 
-    let item = parse(data)?;
     assert_eq!(
-        item,
-        Value::Array(vec![Value::Number(Number::Float(
-            b"8.310346185542391",
-            b"275"
-        ))])
+        parse(num.as_bytes())?,
+        Value::Number(Number::Float(b"8.310346185542391", b"275"))
+    );
+    assert_eq!(
+        parse(array.as_bytes())?,
+        Value::Array(vec![Value::Number(Number::Float(b"8.310346185542391", b"275"))])
     );
     Ok(())
 }

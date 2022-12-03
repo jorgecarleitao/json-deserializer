@@ -70,7 +70,7 @@ fn next_state(byte: u8, state: State) -> Result<State, Error> {
         (b'.', State::Number) => State::Fraction,
         (b'0'..=b'9', State::Number | State::Fraction) => state,
         (b'E' | b'e', State::Number | State::Fraction) => State::Exponent,
-        (b'0'..=b'9' | b'-', State::Exponent) => State::Exponent,
+        (b'0'..=b'9' | b'-' | b'+', State::Exponent) => State::Exponent,
         (b'E' | b'e' | b'.' | b'-', _) => return Err(Error::NumberWithTwoPeriods),
         (_, _) => State::Finished,
     })

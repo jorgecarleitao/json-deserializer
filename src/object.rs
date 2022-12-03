@@ -21,7 +21,7 @@ pub fn parse_object<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Object<'a>, Erro
         };
         if !items.is_empty() {
             if token != b',' {
-                return Err(Error::MissingComa(values[0]));
+                return Err(Error::MissingComma(values[0]));
             }
             *values = &values[1..]; // consume ","
         }

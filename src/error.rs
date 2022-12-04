@@ -22,7 +22,7 @@ pub enum Error {
     /// todo
     InvalidToken(u8),
     /// todo
-    MissingComa(u8),
+    MissingComma(u8),
     /// todo
     InvalidStringToken(u8),
     /// todo

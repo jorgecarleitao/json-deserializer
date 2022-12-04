@@ -227,6 +227,30 @@ fn number_exponent2() -> Result<(), Error> {
 }
 
 #[test]
+fn number_exponent3() -> Result<(), Error> {
+    let num = "1.1e+10";
+    let array: &str = &format!("[{}]", num);
+    let obj: &str = &format!("{{\"Value\":{}}}", num);
+
+    assert_eq!(
+        parse(num.as_bytes())?,
+        Value::Number(Number::Float(b"1.1", b"+10"))
+    );
+    assert_eq!(
+        parse(array.as_bytes())?,
+        Value::Array(vec![Value::Number(Number::Float(b"1.1", b"+10"))])
+    );
+    let mut expected = Object::new();
+    expected.insert("Value".to_string(), Value::Number(Number::Float(b"1.1", b"+10")));
+
+    assert_eq!(
+        parse(obj.as_bytes())?,
+        Value::Object(expected)
+    );
+    Ok(())
+}
+
+#[test]
 fn pretty_1() -> Result<(), Error> {
     let data: &[u8] = b"[\n  null\n]";
 
@@ -250,6 +274,7 @@ fn edges() {
     assert!(parse(br#"1.1"#).is_ok());
     assert!(parse(br#"1.1E-6"#).is_ok());
     assert!(parse(br#"1.1e-6"#).is_ok());
+    assert!(parse(br#"1.1e+6"#).is_ok());
 
     assert!(parse(br#"nula"#).is_err());
     assert!(parse(br#"trua"#).is_err());

@@ -4,7 +4,11 @@ use core::fmt::Display;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Error {
     /// todo
-    NumberWithTwoPeriods,
+    NumberWithLeadingZero,
+    /// todo
+    NumberWithEmptyFraction,
+    /// todo
+    NumberWithEmptyExponent,
     /// todo
     InvalidUtf8,
     /// todo

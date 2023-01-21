@@ -14,22 +14,26 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
     let mut state = next_state(*byte, prev_state)?;
 
     loop {
-        if let State::Fraction = state {
+        if let State::FractionStart = state {
             is_float = true
         }
         length += 1;
 
         prev_state = state;
 
-        if matches!(prev_state, State::Number | State::Fraction) {
-            number_end += 1
-        };
-
-        if values.len() == 1 {
-            break;
+        if matches!(
+            state,
+            State::Signed | State::Zero | State::Nonzero | State::FractionStart | State::Fraction
+        ) {
+            number_end += 1;
         }
 
         *values = values.get(1..).ok_or(Error::InvalidEOF)?;
+
+        if values.is_empty() {
+            break;
+        }
+
         let byte = values.get(0).ok_or(Error::InvalidEOF)?;
 
         state = next_state(*byte, state)?;
@@ -38,18 +42,24 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
             break;
         }
     }
-    let number = &number[..length];
-    let exponent = if number_end == number.len() {
-        &[]
-    } else {
-        &number[number_end + 1..]
-    };
-    let number = &number[..number_end];
-    Ok(if is_float {
-        Number::Float(number, exponent)
-    } else {
-        Number::Integer(number, exponent)
-    })
+    match prev_state {
+        State::FractionStart => Err(Error::NumberWithEmptyFraction),
+        State::ExponentStart | State::ExponentSigned => Err(Error::NumberWithEmptyExponent),
+        _ => {
+            let number = &number[..length];
+            let exponent = if number_end == number.len() {
+                &[]
+            } else {
+                &number[number_end + 1..]
+            };
+            let number = &number[..number_end];
+            Ok(if is_float {
+                Number::Float(number, exponent)
+            } else {
+                Number::Integer(number, exponent)
+            })
+        }
+    }
 }
 
 /// The state of the string lexer
@@ -57,8 +67,13 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
 pub enum State {
     Finished, // when it is done
     Start,
-    Number,
+    Signed,
+    Zero,
+    Nonzero,
+    FractionStart,
     Fraction,
+    ExponentStart,
+    ExponentSigned,
     Exponent,
 }
 
@@ -66,12 +81,25 @@ pub enum State {
 #[inline]
 fn next_state(byte: u8, state: State) -> Result<State, Error> {
     Ok(match (byte, &state) {
-        (b'0'..=b'9' | b'-', State::Start) => State::Number,
-        (b'.', State::Number) => State::Fraction,
-        (b'0'..=b'9', State::Number | State::Fraction) => state,
-        (b'E' | b'e', State::Number | State::Fraction) => State::Exponent,
-        (b'0'..=b'9' | b'-' | b'+', State::Exponent) => State::Exponent,
-        (b'E' | b'e' | b'.' | b'-', _) => return Err(Error::NumberWithTwoPeriods),
+        (b'-', State::Start) => State::Signed,
+        (b'0', State::Start | State::Signed) => State::Zero,
+        (b'1'..=b'9', State::Start | State::Signed) => State::Nonzero,
+
+        (b'0'..=b'9', State::Zero) => return Err(Error::NumberWithLeadingZero),
+
+        (b'.', State::Zero | State::Nonzero) => State::FractionStart,
+        (b'e' | b'E', State::FractionStart) => return Err(Error::NumberWithEmptyFraction),
+        (b'e' | b'E', State::Zero | State::Nonzero | State::Fraction) => State::ExponentStart,
+
+        (b'0'..=b'9', State::Nonzero) => State::Nonzero,
+
+        (b'0'..=b'9', State::FractionStart | State::Fraction) => State::Fraction,
+
+        (b'+' | b'-', State::ExponentStart) => State::ExponentSigned,
+        (b'0'..=b'9', State::ExponentStart | State::ExponentSigned | State::Exponent) => {
+            State::Exponent
+        }
+
         (_, _) => State::Finished,
     })
 }

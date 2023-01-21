@@ -12,6 +12,8 @@ pub enum Error {
     /// todo
     InvalidUtf8,
     /// todo
+    StringWithControlCharacters,
+    /// todo
     InvalidEscaped(u8),
     /// todo
     InvalidHex(u8),

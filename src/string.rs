@@ -26,6 +26,7 @@ fn compute_length(values: &mut &[u8]) -> Result<(usize, usize, usize), Error> {
     let mut length = 0;
     let mut escapes = 0;
     let mut controls = 0;
+    debug_assert!(!values.is_empty(), "Tried to parse string on empty input");
     loop {
         *values = &values[1..];
         let ch = *values.get(0).ok_or(Error::InvalidEOF)?;

@@ -50,7 +50,13 @@ pub enum Value<'a> {
 /// # Panics
 /// If and only if there is not enough memory to allocate.
 pub fn parse(mut json: &[u8]) -> Result<Value, Error> {
-    parse_value(&mut json)
+    let res = parse_value(&mut json)?;
+    skip_unused(&mut json);
+    if json.is_empty() {
+        Ok(res)
+    } else {
+        Err(Error::InvalidEOF)
+    }
 }
 
 pub fn parse_value<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Value<'a>, Error> {

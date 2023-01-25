@@ -18,7 +18,7 @@ fn arb_json(pretty: bool) -> impl Strategy<Value = String> {
         any::<bool>().prop_map(Value::Bool),
         any::<f64>().prop_map(Value::from),
         any::<i32>().prop_map(Value::from),
-        ".*".prop_map(Value::String),
+        "\\PC*".prop_map(Value::String),
     ];
     leaf.prop_recursive(
         4,  // 8 levels deep
@@ -28,7 +28,7 @@ fn arb_json(pretty: bool) -> impl Strategy<Value = String> {
             prop_oneof![
                 // Take the inner strategy and make the two recursive cases.
                 prop::collection::vec(inner.clone(), 0..10).prop_map(Value::Array),
-                prop::collection::hash_map(".*", inner, 0..10)
+                prop::collection::hash_map("\\PC*", inner, 0..10)
                     .prop_map(hash_to_map)
                     .prop_map(Value::Object),
             ]

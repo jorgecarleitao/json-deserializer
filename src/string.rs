@@ -22,9 +22,11 @@ fn skip_escape(values: &mut &[u8]) -> Result<usize, Error> {
 }
 
 #[inline]
-fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
+fn compute_length(values: &mut &[u8]) -> Result<(usize, usize, usize), Error> {
     let mut length = 0;
     let mut escapes = 0;
+    let mut controls = 0;
+    debug_assert!(!values.is_empty(), "Tried to parse string on empty input");
     loop {
         *values = &values[1..];
         let ch = *values.get(0).ok_or(Error::InvalidEOF)?;
@@ -33,11 +35,14 @@ fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
             b'\\' => {
                 escapes += 1;
                 length += skip_escape(values)?;
-            }
+            },
             b'"' => {
                 *values = &values[1..];
-                return Ok((length, escapes));
+                return Ok((length, escapes, controls));
             }
+            _ if ch.is_ascii_control() => {
+                controls += 1;
+            },
             _ => {}
         }
     }
@@ -47,10 +52,12 @@ fn compute_length(values: &mut &[u8]) -> Result<(usize, usize), Error> {
 pub fn parse_string<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Cow<'a, str>, Error> {
     // compute the size of the string value and whether it has escapes
     let string = *values;
-    let (length, escapes) = compute_length(values)?;
+    let (length, escapes, controls) = compute_length(values)?;
 
     let mut data = &string[1..length];
-    if escapes > 0 {
+    if controls > 0 {
+        Err(Error::StringWithControlCharacters)
+    } else if escapes > 0 {
         let capacity = data.len() - escapes;
         let mut container = String::with_capacity(capacity);
 

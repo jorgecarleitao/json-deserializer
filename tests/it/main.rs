@@ -293,6 +293,48 @@ fn edges() {
 }
 
 #[test]
+fn json_org_validator_tests() {
+    // Tests from http://www.json.org/JSON_checker/
+    assert!(parse(include_bytes!("json_org_validator_tests/pass1.json")).is_ok());
+    assert!(parse(include_bytes!("json_org_validator_tests/pass2.json")).is_ok());
+    assert!(parse(include_bytes!("json_org_validator_tests/pass3.json")).is_ok());
+
+    //assert!(parse(include_bytes!("json_org_validator_tests/fail1.json")).is_err()); // Top-level values is allowed
+    assert!(parse(include_bytes!("json_org_validator_tests/fail2.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail3.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail4.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail5.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail6.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail7.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail8.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail9.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail10.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail11.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail12.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail13.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail14.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail15.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail16.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail17.json")).is_err());
+    //assert!(parse(include_bytes!("json_org_validator_tests/fail18.json")).is_err()); // No maximum depth
+    assert!(parse(include_bytes!("json_org_validator_tests/fail19.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail20.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail21.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail22.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail23.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail24.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail25.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail26.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail27.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail28.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail29.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail30.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail31.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail32.json")).is_err());
+    assert!(parse(include_bytes!("json_org_validator_tests/fail33.json")).is_err());
+}
+
+#[test]
 fn err_fmt() {
     let er = parse(br#"paa"#).err().unwrap();
     assert_eq!(format!("{}", er), "InvalidToken(112)".to_string());

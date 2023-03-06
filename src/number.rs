@@ -14,9 +14,10 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
     let mut state = next_state(*byte, prev_state)?;
 
     loop {
-        if let State::FractionStart = state {
+        if matches!(state, State::FractionStart | State::ExponentSignedNegative) {
             is_float = true
         }
+
         length += 1;
 
         prev_state = state;
@@ -44,7 +45,9 @@ pub fn parse_number<'b, 'a>(values: &'b mut &'a [u8]) -> Result<Number<'a>, Erro
     }
     match prev_state {
         State::FractionStart => Err(Error::NumberWithEmptyFraction),
-        State::ExponentStart | State::ExponentSigned => Err(Error::NumberWithEmptyExponent),
+        State::ExponentStart | State::ExponentSignedPositive | State::ExponentSignedNegative => {
+            Err(Error::NumberWithEmptyExponent)
+        }
         _ => {
             let number = &number[..length];
             let exponent = if number_end == number.len() {
@@ -73,7 +76,8 @@ pub enum State {
     FractionStart,
     Fraction,
     ExponentStart,
-    ExponentSigned,
+    ExponentSignedPositive,
+    ExponentSignedNegative,
     Exponent,
 }
 
@@ -95,10 +99,15 @@ fn next_state(byte: u8, state: State) -> Result<State, Error> {
 
         (b'0'..=b'9', State::FractionStart | State::Fraction) => State::Fraction,
 
-        (b'+' | b'-', State::ExponentStart) => State::ExponentSigned,
-        (b'0'..=b'9', State::ExponentStart | State::ExponentSigned | State::Exponent) => {
-            State::Exponent
-        }
+        (b'+', State::ExponentStart) => State::ExponentSignedPositive,
+        (b'-', State::ExponentStart) => State::ExponentSignedNegative,
+        (
+            b'0'..=b'9',
+            State::ExponentStart
+            | State::ExponentSignedPositive
+            | State::ExponentSignedNegative
+            | State::Exponent,
+        ) => State::Exponent,
 
         (_, _) => State::Finished,
     })

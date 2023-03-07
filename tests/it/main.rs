@@ -196,16 +196,16 @@ fn number_exponent() -> Result<(), Error> {
 
 #[test]
 fn number_exponent1() -> Result<(), Error> {
-    let num: &str = "1e-10";
+    let num: &str = "1e-42";
     let array: &str = &format!("[{}]", num);
 
     assert_eq!(
         parse(num.as_bytes())?,
-        Value::Number(Number::Integer(b"1", b"-10"))
+        Value::Number(Number::Float(b"1", b"-42"))
     );
     assert_eq!(
         parse(array.as_bytes())?,
-        Value::Array(vec![Value::Number(Number::Integer(b"1", b"-10"))])
+        Value::Array(vec![Value::Number(Number::Float(b"1", b"-42"))])
     );
     Ok(())
 }
@@ -221,7 +221,10 @@ fn number_exponent2() -> Result<(), Error> {
     );
     assert_eq!(
         parse(array.as_bytes())?,
-        Value::Array(vec![Value::Number(Number::Float(b"8.310346185542391", b"275"))])
+        Value::Array(vec![Value::Number(Number::Float(
+            b"8.310346185542391",
+            b"275"
+        ))])
     );
     Ok(())
 }
@@ -241,12 +244,12 @@ fn number_exponent3() -> Result<(), Error> {
         Value::Array(vec![Value::Number(Number::Float(b"1.1", b"+10"))])
     );
     let mut expected = Object::new();
-    expected.insert("Value".to_string(), Value::Number(Number::Float(b"1.1", b"+10")));
-
-    assert_eq!(
-        parse(obj.as_bytes())?,
-        Value::Object(expected)
+    expected.insert(
+        "Value".to_string(),
+        Value::Number(Number::Float(b"1.1", b"+10")),
     );
+
+    assert_eq!(parse(obj.as_bytes())?, Value::Object(expected));
     Ok(())
 }
 

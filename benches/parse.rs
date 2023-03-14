@@ -48,6 +48,7 @@ fn add_benchmark(c: &mut Criterion) {
             "bool",
             "object_string",
             "object_bool",
+            "object_complex",
         ] {
             let bytes = read(type_, log2_size);
 
